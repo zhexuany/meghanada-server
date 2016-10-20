@@ -1,6 +1,7 @@
 package meghanada.parser;
 
 import meghanada.GradleTestBase;
+import meghanada.config.Config;
 import meghanada.parser.source.JavaSource;
 import meghanada.reflect.asm.CachedASMReflector;
 import org.junit.After;
@@ -9,7 +10,6 @@ import org.junit.Test;
 
 import java.io.File;
 
-import static meghanada.config.Config.timeIt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -36,13 +36,16 @@ public class FQCNResolverTest extends GradleTestBase {
     public void resolveFQCN1() throws Exception {
         JavaParser parser = new JavaParser();
         assertNotNull(parser);
-        final JavaSource source = timeIt(() -> parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java")));
         FQCNResolver resolver = FQCNResolver.getInstance();
         {
-            String fqcn = resolver.resolveFQCN("log", source).get();
+            String fqcn = Config.debugIt(() -> {
+                final JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
+                return resolver.resolveFQCN("log", source).get();
+            });
             assertEquals("org.apache.logging.log4j.Logger", fqcn);
         }
         {
+            final JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
             String fqcn = resolver.resolveFQCN("this", source).get();
             assertEquals("meghanada.reflect.asm.ASMReflector", fqcn);
         }

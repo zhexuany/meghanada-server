@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static meghanada.config.Config.timeIt;
+import static meghanada.config.Config.traceIt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -930,6 +931,22 @@ public class JavaParserTest extends GradleTestBase {
             String type = typeScope.getType();
             assertEquals("Simple1", type);
             assertEquals(4, result.size());
+        }
+
+    }
+
+    @Test
+    public void testParseSimple2() throws Exception {
+        JavaSource source = traceIt(() -> {
+            JavaParser parser = new JavaParser();
+            return parser.parse(new File("src/test/java/meghanada/Gen1.java"));
+        });
+
+        for (TypeScope typeScope : source.getTypeScopes()) {
+            List<MemberDescriptor> result = typeScope.getMemberDescriptors();
+            String type = typeScope.getType();
+            assertEquals("Gen1", type);
+            assertEquals(5, result.size());
         }
 
     }

@@ -220,7 +220,15 @@ class FQCNResolver {
             return log.traceExit(entryMessage, result);
         }
 
-        // 3. resolve from package scope
+        // 3. resolve from globals (java.lang.*)
+        fqcn = this.globalClassSymbol.get(searchName);
+        if (fqcn != null) {
+            final Optional<String> result = Optional.ofNullable(className.addTypeParameters(fqcn));
+            log.trace("resolved default package name={} result={}", searchName, result);
+            return log.traceExit(entryMessage, result);
+        }
+
+        // 4. resolve from package scope
         final Optional<String> packageResult = source.getCurrentType().map(typeScope -> {
             String s = searchName;
             final String typeScopePackage = typeScope.getPackage();
@@ -240,13 +248,6 @@ class FQCNResolver {
             return log.traceExit(entryMessage, packageResult);
         }
 
-        // 4. resolve from globals (java.lang.*)
-        fqcn = this.globalClassSymbol.get(searchName);
-        if (fqcn != null) {
-            final Optional<String> result = Optional.ofNullable(className.addTypeParameters(fqcn));
-            log.trace("resolved default package name={} result={}", searchName, packageResult);
-            return log.traceExit(entryMessage, result);
-        }
 
         // 5. resolve current source
         fqcn = source.getCurrentType().map(ts -> {

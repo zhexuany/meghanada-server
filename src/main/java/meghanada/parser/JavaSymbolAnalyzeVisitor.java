@@ -257,14 +257,15 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             if (name != null && !name.isEmpty()) {
                 final NodeList<ClassOrInterfaceType> typeBounds = tp.getTypeBound();
                 if (typeBounds != null && typeBounds.size() > 0) {
-                    final ClassOrInterfaceType type = typeBounds.get(0);
-                    final String typeBound = type.toString();
-                    final String fqcn = this.toFQCN(typeBound, source);
-                    classScope.getTypeParameterMap().put(name, fqcn);
-                    log.trace("put typeParameterMap name={} typeBound={}", name, typeBound);
+                    typeBounds.forEach(classOrInterfaceType -> {
+                        final String tb = classOrInterfaceType.getName();
+                        final String fqcn = this.toFQCN(tb, source);
+                        classScope.getTypeParameterMap().put(name, fqcn);
+                        log.trace("put typeParameterMap name={} typeBound={} fqcn={}", name, tb, fqcn);
+                    });
                 } else {
                     classScope.getTypeParameterMap().put(name, ClassNameUtils.OBJECT_CLASS);
-                    log.trace("put typeParameterMap name={} typeBound={}", name, ClassNameUtils.OBJECT_CLASS);
+                    log.trace("put typeParameterMap name={} typeBound=Object fqcn={}", name, ClassNameUtils.OBJECT_CLASS);
                 }
             }
         });
@@ -547,10 +548,13 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                 scopeExpression = Optional.of(expr);
             }
         } else {
-            final String type = ((NameExpr) scopeExpression.get()).getName();
-            // TODO needs?
-            if (Character.isUpperCase(type.charAt(0))) {
-                this.markUsedClass(type, src);
+            final Expression expression = scopeExpression.get();
+            if (expression instanceof NameExpr) {
+                final String type = ((NameExpr) expression).getName();
+                // TODO needs?
+                if (Character.isUpperCase(type.charAt(0))) {
+                    this.markUsedClass(type, src);
+                }
             }
         }
         final Optional<MethodCallSymbol> result = scopeExpression.flatMap(scopeExpr -> {

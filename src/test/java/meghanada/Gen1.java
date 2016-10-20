@@ -2,7 +2,7 @@ package meghanada;
 
 import java.util.List;
 
-public class Gen1<K, V> {
+public class Gen1<K extends String, V> {
 
     public String name;
     public K key;
