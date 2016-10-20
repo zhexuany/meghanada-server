@@ -3,7 +3,7 @@ package meghanada;
 import java.io.IOException;
 import java.util.List;
 
-public class Gen1<K extends String, V> {
+public class Gen1<K extends String, V> extends Object {
 
     public String name;
     public K key;

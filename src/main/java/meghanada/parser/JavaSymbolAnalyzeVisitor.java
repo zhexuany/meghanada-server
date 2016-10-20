@@ -170,60 +170,42 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
         String className = node.getName();
 
-        final TypeScope current = source.currentType.peek();
-        if (current != null) {
-            final String type = current.getType();
+        final Optional<TypeScope> current = source.getCurrentType();
+        if (current.isPresent()) {
+            final String type = current.get().getType();
             className = type + ClassNameUtils.INNER_MARK + className;
         }
         final CachedASMReflector reflector = CachedASMReflector.getInstance();
 
         final ClassScope classScope = new ClassScope(source.pkg, className, node.getRange(), node.getNameExpr().getRange(), node.isInterface());
-        final List<String> extendsClasses = new ArrayList<>(1);
-        if (nExtends != null) {
-            for (final ClassOrInterfaceType ci : nExtends) {
-                final String name = ci.getName();
-                final Optional<String> clazz = this.fqcnSolver.solveFQCN(name, source);
 
-                if (clazz.isPresent()) {
-                    final String fqcn = clazz.get();
-                    extendsClasses.add(fqcn);
-                    this.markUsedClass(fqcn, source);
+        final List<String> extendsClasses = nExtends.stream().map(ci -> {
+            final String name = ci.getName();
+            final String fqcn = this.fqcnSolver.solveFQCN(name, source).orElse(name);
+            this.markUsedClass(fqcn, source);
+            reflector.reflectFieldStream(fqcn).forEach(md -> {
+                final String declaration = md.getDeclaration();
+                if (declaration.contains("public") || declaration.contains("protected")) {
+                    final String returnType = md.getReturnType();
+                    final String solved = this.fqcnSolver.solveFQCN(returnType, source).orElse(returnType);
+                    final Variable ns = new Variable(
+                            md.getDeclaringClass(),
+                            md.getName(),
+                            node.getRange(),
+                            solved,
+                            true);
+                    classScope.addFieldSymbol(ns);
+                }
+            });
+            return fqcn;
+        }).collect(Collectors.toList());
 
-                    // import super class fields
-                    reflector.reflectFieldStream(fqcn)
-                            .forEach(md -> {
-                                final String declaration = md.getDeclaration();
-                                if (declaration.contains("public")
-                                        || declaration.contains("protected")) {
-                                    final String ret = this.fqcnSolver.solveFQCN(md.getReturnType(), source).orElse(md.getReturnType());
-                                    final Variable ns = new Variable(
-                                            md.getDeclaringClass(),
-                                            md.getName(),
-                                            node.getRange(),
-                                            ret,
-                                            true);
-                                    classScope.addFieldSymbol(ns);
-                                }
-                            });
-                } else {
-                    this.markUsedClass(name, source);
-                }
-            }
-        }
-        final List<String> implClasses = new ArrayList<>(4);
-        if (nImplements != null) {
-            for (final ClassOrInterfaceType ci : nImplements) {
-                final String name = ci.getName();
-                final Optional<String> clazz = fqcnSolver.solveFQCN(name, source);
-                if (clazz.isPresent()) {
-                    final String fqcn = clazz.get();
-                    implClasses.add(fqcn);
-                    this.markUsedClass(fqcn, source);
-                } else {
-                    this.markUsedClass(name, source);
-                }
-            }
-        }
+        final List<String> implClasses = nImplements.stream().map(ci -> {
+            final String name = ci.getName();
+            final String fqcn = fqcnSolver.solveFQCN(name, source).orElse(name);
+            this.markUsedClass(fqcn, source);
+            return fqcn;
+        }).collect(Collectors.toList());
 
         classScope.setExtendsClasses(extendsClasses);
         classScope.setImplClasses(implClasses);
@@ -235,9 +217,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         super.visit(node, source);
         log.trace("end   ClassOrInterface:{}, Range:{}", className, node.getRange());
 
-        final TypeScope typeScope = source.currentType.remove();
-        source.typeScopes.add(typeScope);
-
+        source.typeScopes.add(source.currentType.remove());
         log.traceExit(entryMessage);
     }
 
