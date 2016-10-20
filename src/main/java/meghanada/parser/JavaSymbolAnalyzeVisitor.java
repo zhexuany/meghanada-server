@@ -447,10 +447,12 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     @Override
     public void visit(FieldAccessExpr node, JavaSource source) {
-        source.getCurrentBlock().ifPresent(blockScope -> {
-            this.fieldAccess(node, source, blockScope);
+        final EntryMessage entryMessage = log.traceEntry("FieldAccessExpr node={} range={}", node, node.getRange());
+        source.getCurrentBlock().ifPresent(bs -> {
+            this.fieldAccess(node, source, bs);
         });
         super.visit(node, source);
+        log.traceExit(entryMessage);
     }
 
     Optional<FieldAccessSymbol> fieldAccess(final FieldAccessExpr node, final JavaSource source, final BlockScope blockScope) {
@@ -582,10 +584,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     private Optional<FieldAccessSymbol> createFieldAccessSymbol(final String name, final String scope, final String declaringClass, final Range range, final JavaSource source) {
         final EntryMessage entryMessage = log.traceEntry("name={} scope={} declaringClass={} range={}", name, scope, declaringClass, range);
 
-        final FieldAccessSymbol symbol = new FieldAccessSymbol(scope,
-                name,
-                range,
-                declaringClass);
+        final FieldAccessSymbol symbol = new FieldAccessSymbol(scope, name, range, declaringClass);
 
         boolean isLocal = scope.equals("this") || scope.equals("super");
 

@@ -140,10 +140,9 @@ class TypeAnalyzer {
     }
 
     Optional<String> analyzeExprClass(final Expression expression, final BlockScope bs, final JavaSource source) {
-        final EntryMessage entryMessage = log.traceEntry("expr={} range={}", expression.getClass(), expression.getRange());
+        final EntryMessage entryMessage = log.traceEntry("expr={} range={}", expression.getClass().getName(), expression.getRange());
         final Class scopeExprClass = expression.getClass();
-        final Optional<String> resolved;
-        resolved = match(scopeExprClass)
+        final Optional<String> solved = match(scopeExprClass)
                 .when(eq(IntegerLiteralExpr.class)).get(() -> Optional.of("java.lang.Integer"))
                 .when(eq(BooleanLiteralExpr.class)).get(() -> Optional.of("java.lang.Boolean"))
                 .when(eq(LongLiteralExpr.class)).get(() -> Optional.of("java.lang.Long"))
@@ -325,7 +324,7 @@ class TypeAnalyzer {
                 })
                 .getMatch();
 
-        return log.traceExit(entryMessage, resolved);
+        return log.traceExit(entryMessage, solved);
     }
 
     private Optional<String> analyzeLambdaMethodRef(JavaSource source, String methodName, String fqcn) {

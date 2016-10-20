@@ -5,7 +5,6 @@ import com.github.javaparser.Range;
 import com.google.common.base.MoreObjects;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.message.EntryMessage;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -212,12 +211,10 @@ public class BlockScope extends Scope {
     }
 
     public void endExpression() {
-        final EntryMessage entryMessage = log.traceEntry("currentExpr={}", currentExpr);
         this.getCurrentExpr().ifPresent(expr -> {
             this.expressions.add(expr);
             this.currentExpr.remove();
         });
-        log.traceExit(entryMessage);
     }
 
 }
