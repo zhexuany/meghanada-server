@@ -1,5 +1,6 @@
 package meghanada.parser;
 
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclaratorId;
 import com.github.javaparser.ast.expr.*;
@@ -41,7 +42,7 @@ class TypeAnalyzer {
         this.returnTypeFunctions = this.getReturnTypeAnalyzeFunctions();
     }
 
-    Optional<MethodSignature> getMethodSignature(final JavaSource src, final BlockScope bs, final String methodName, final List<Expression> args) {
+    Optional<MethodSignature> getMethodSignature(final JavaSource src, final BlockScope bs, final String methodName, final NodeList<Expression> args) {
         final MethodSignature methodSignature = new MethodSignature();
         final List<String> argTypes = args.stream()
                 .map(expr -> {
@@ -138,10 +139,11 @@ class TypeAnalyzer {
         callMethod.putTypeParameter(replaceTypeKey, returnType);
     }
 
-    Optional<String> analyzeExprClass(final Expression expression, final BlockScope blockScope, final JavaSource source) {
+    Optional<String> analyzeExprClass(final Expression expression, final BlockScope bs, final JavaSource source) {
         final EntryMessage entryMessage = log.traceEntry("expr={} range={}", expression.getClass(), expression.getRange());
         final Class scopeExprClass = expression.getClass();
-        final Optional<String> resolved = match(scopeExprClass)
+        final Optional<String> resolved;
+        resolved = match(scopeExprClass)
                 .when(eq(IntegerLiteralExpr.class)).get(() -> Optional.of("java.lang.Integer"))
                 .when(eq(BooleanLiteralExpr.class)).get(() -> Optional.of("java.lang.Boolean"))
                 .when(eq(LongLiteralExpr.class)).get(() -> Optional.of("java.lang.Long"))
@@ -170,32 +172,32 @@ class TypeAnalyzer {
                         return Optional.of("java.lang.Boolean");
                     }
 
-                    final Optional<String> left = this.analyzeExprClass(x.getLeft(), blockScope, source);
-                    final Optional<String> right = this.analyzeExprClass(x.getRight(), blockScope, source);
+                    final Optional<String> left = this.analyzeExprClass(x.getLeft(), bs, source);
+                    final Optional<String> right = this.analyzeExprClass(x.getRight(), bs, source);
                     return Optional.ofNullable(left.orElse(right.orElse(null)));
                 })
                 .when(eq(ConditionalExpr.class)).get(() -> {
                     final ConditionalExpr x = (ConditionalExpr) expression;
                     // eval
-                    final Optional<String> condOp = this.analyzeExprClass(x.getCondition(), blockScope, source);
-                    final Optional<String> thenOp = this.analyzeExprClass(x.getThenExpr(), blockScope, source);
-                    final Optional<String> elseOp = this.analyzeExprClass(x.getElseExpr(), blockScope, source);
+                    final Optional<String> condOp = this.analyzeExprClass(x.getCondition(), bs, source);
+                    final Optional<String> thenOp = this.analyzeExprClass(x.getThenExpr(), bs, source);
+                    final Optional<String> elseOp = this.analyzeExprClass(x.getElseExpr(), bs, source);
                     return Optional.ofNullable(thenOp.orElse(elseOp.orElse(null)));
                 })
                 .when(eq(UnaryExpr.class)).get(() -> {
                     UnaryExpr x = (UnaryExpr) expression;
-                    return this.analyzeExprClass(x.getExpr(), blockScope, source);
+                    return this.analyzeExprClass(x.getExpr(), bs, source);
                 })
                 .when(eq(AssignExpr.class)).get(() -> {
                     AssignExpr x = (AssignExpr) expression;
-                    final Optional<String> targetOp = this.analyzeExprClass(x.getTarget(), blockScope, source);
-                    final Optional<String> valOp = this.analyzeExprClass(x.getValue(), blockScope, source);
+                    final Optional<String> targetOp = this.analyzeExprClass(x.getTarget(), bs, source);
+                    final Optional<String> valOp = this.analyzeExprClass(x.getValue(), bs, source);
                     return Optional.ofNullable(targetOp.orElse(valOp.orElse(null)));
                 })
                 .when(eq(InstanceOfExpr.class)).get(() -> {
                     InstanceOfExpr x = (InstanceOfExpr) expression;
                     // eval
-                    final Optional<String> condOp = this.analyzeExprClass(x.getExpr(), blockScope, source);
+                    final Optional<String> condOp = this.analyzeExprClass(x.getExpr(), bs, source);
                     return Optional.of("java.lang.Boolean");
                 })
                 .when(eq(NameExpr.class)).get(() -> {
@@ -203,13 +205,13 @@ class TypeAnalyzer {
                     final int line = x.getRange().begin.line;
                     final Optional<String> result = this.fqcnResolver.resolveSymbolFQCN(x.getName(), source, line);
                     result.ifPresent(fqcn -> {
-                        if (!blockScope.containsSymbol(x.getName())) {
-                            final String parent = blockScope.getName();
+                        if (!bs.containsSymbol(x.getName())) {
+                            final String parent = bs.getName();
                             final Variable symbol = new Variable(parent,
                                     x.getName(),
                                     x.getRange(),
                                     fqcn);
-                            blockScope.addNameSymbol(symbol);
+                            bs.addNameSymbol(symbol);
                         }
                     });
                     return result;
@@ -219,11 +221,11 @@ class TypeAnalyzer {
                     if (CachedASMReflector.getInstance().containsFQCN(x.toStringWithoutComments())) {
                         return Optional.of(x.toStringWithoutComments());
                     }
-                    return this.visitor.fieldAccess(x, source, blockScope).map(AccessSymbol::getReturnType);
+                    return this.visitor.fieldAccess(x, source, bs).map(AccessSymbol::getReturnType);
                 })
                 .when(eq(MethodCallExpr.class)).get(() -> {
                     MethodCallExpr x = (MethodCallExpr) expression;
-                    return this.visitor.methodCall(x, source, blockScope).map(AccessSymbol::getReturnType);
+                    return this.visitor.methodCall(x, source, bs).map(AccessSymbol::getReturnType);
                 })
                 .when(eq(ThisExpr.class)).get(() -> source.getCurrentType().map(TypeScope::getFQCN))
                 .when(eq(SuperExpr.class)).get(() -> source.getCurrentType().flatMap(typeScope -> {
@@ -244,7 +246,7 @@ class TypeAnalyzer {
                 .when(eq(StringLiteralExpr.class)).get(() -> Optional.of("java.lang.String"))
                 .when(eq(EnclosedExpr.class)).get(() -> {
                     final EnclosedExpr x = (EnclosedExpr) expression;
-                    return this.analyzeExprClass(x.getInner(), blockScope, source);
+                    return x.getInner().flatMap(expr -> this.analyzeExprClass(expr, bs, source));
                 })
                 .when(eq(CastExpr.class)).get(() -> {
                     final CastExpr x = (CastExpr) expression;
@@ -252,7 +254,7 @@ class TypeAnalyzer {
                 })
                 .when(eq(ArrayAccessExpr.class)).get(() -> {
                     final ArrayAccessExpr x = (ArrayAccessExpr) expression;
-                    return this.analyzeExprClass(x.getName(), blockScope, source);
+                    return this.analyzeExprClass(x.getName(), bs, source);
                 })
                 .when(eq(ArrayCreationExpr.class)).get(() -> {
                     ArrayCreationExpr x = (ArrayCreationExpr) expression;
@@ -268,7 +270,7 @@ class TypeAnalyzer {
                     MethodReferenceExpr x = (MethodReferenceExpr) expression;
                     final String methodName = x.getIdentifier();
                     final Expression scope = x.getScope();
-                    final Optional<String> scopeFqcn = this.analyzeExprClass(scope, blockScope, source);
+                    final Optional<String> scopeFqcn = this.analyzeExprClass(scope, bs, source);
                     log.trace("MethodReferenceExpr methodName:{} scope:{} type:{}", methodName, scope, x.getTypeArguments());
 
                     if (x.getParentNode() instanceof MethodCallExpr && scopeFqcn.isPresent()) {
@@ -297,7 +299,7 @@ class TypeAnalyzer {
                 })
                 .when(eq(LambdaExpr.class)).get(() -> {
                     final LambdaExpr x = (LambdaExpr) expression;
-                    final List<Parameter> parameters = x.getParameters();
+                    final NodeList<Parameter> parameters = x.getParameters();
 
                     parameters.forEach(parameter -> {
                         // TODO get lambda method
@@ -443,7 +445,7 @@ class TypeAnalyzer {
     }
 
     private Optional<Map<String, Variable>> analyzeLambdaParameterTypes(JavaSource source, LambdaExpr x) {
-        final List<Parameter> parameters = x.getParameters();
+        final NodeList<Parameter> parameters = x.getParameters();
         if (parameters == null || parameters.size() == 0) {
             return Optional.empty();
         }
@@ -462,8 +464,9 @@ class TypeAnalyzer {
                 final boolean varArgs = p.isVarArgs();
                 String type = p.getType().toString();
                 final VariableDeclaratorId declaratorId = p.getId();
-                if (declaratorId.getArrayCount() > 0) {
-                    type = type + Strings.repeat(ClassNameUtils.ARRAY, declaratorId.getArrayCount());
+                final int cnt = declaratorId.getArrayBracketPairsAfterId().size();
+                if (cnt > 0) {
+                    type = type + Strings.repeat(ClassNameUtils.ARRAY, cnt);
                 }
 
                 if (type.isEmpty()) {
@@ -483,7 +486,7 @@ class TypeAnalyzer {
         });
     }
 
-    Optional<String> getReturnType(final JavaSource src, final BlockScope bs, final String declaringClass, final String methodName, final List<Expression> args) {
+    Optional<String> getReturnType(final JavaSource src, final BlockScope bs, final String declaringClass, final String methodName, final NodeList<Expression> args) {
         final Optional<TypeAnalyzer.MethodSignature> methodSig = this.getMethodSignature(src, bs, methodName, args);
         return methodSig.flatMap(ms -> {
             final Optional<MemberDescriptor> callingMethod = this.getCallingMethod(src, declaringClass, methodName, args.size(), ms.signature);

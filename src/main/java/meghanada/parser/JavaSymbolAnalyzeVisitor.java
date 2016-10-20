@@ -1,16 +1,21 @@
 package meghanada.parser;
 
 import com.github.javaparser.Range;
-import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.AccessSpecifier;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.PackageDeclaration;
-import com.github.javaparser.ast.TypeParameter;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.imports.SingleStaticImportDeclaration;
+import com.github.javaparser.ast.imports.SingleTypeImportDeclaration;
+import com.github.javaparser.ast.imports.StaticImportOnDemandDeclaration;
+import com.github.javaparser.ast.imports.TypeImportOnDemandDeclaration;
 import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.type.TypeParameter;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.google.common.base.Strings;
 import meghanada.parser.source.*;
@@ -22,10 +27,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.EntryMessage;
 
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
@@ -40,8 +42,9 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     }
 
     static String checkArrayType(String type, final VariableDeclaratorId declaratorId) {
-        if (declaratorId.getArrayCount() > 0) {
-            type = type + Strings.repeat(ClassNameUtils.ARRAY, declaratorId.getArrayCount());
+        final int cnt = declaratorId.getArrayBracketPairsAfterId().size();
+        if (cnt > 0) {
+            type = type + Strings.repeat(ClassNameUtils.ARRAY, cnt);
         }
         return type;
     }
@@ -53,37 +56,49 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         super.visit(n, source);
     }
 
+
     @Override
-    public void visit(final ImportDeclaration node, final JavaSource source) {
-        String fqcn = node.getName().toString();
-        String name = node.getName().getName();
-        if (node.isStatic()) {
-            if (node.isAsterisk()) {
-                CachedASMReflector reflector = CachedASMReflector.getInstance();
-                reflector.reflectStaticStream(fqcn)
-                        .forEach(md -> {
-                            source.staticImp.putIfAbsent(md.getName(), md.getDeclaringClass());
-                        });
-            } else {
-                fqcn = ClassNameUtils.getPackage(fqcn);
-                source.staticImp.putIfAbsent(name, fqcn);
-            }
-        } else {
-            if (!node.isAsterisk()) {
-                source.importClass.put(name, fqcn);
-                source.addUnusedClass(name, fqcn);
-            } else {
-                CachedASMReflector reflector = CachedASMReflector.getInstance();
-                Map<String, String> symbols = reflector.getPackageClasses(fqcn);
-                for (Map.Entry<String, String> entry : symbols.entrySet()) {
-                    source.importClass.put(entry.getKey(), entry.getValue());
-                    source.addUnusedClass(entry.getKey(), entry.getValue());
-                }
-            }
-        }
+    public void visit(SingleStaticImportDeclaration node, JavaSource source) {
+
+        final String member = node.getStaticMember();
+        final String fqcn = node.getType().toString();
+        source.staticImp.putIfAbsent(member, fqcn);
         super.visit(node, source);
     }
 
+    @Override
+    public void visit(SingleTypeImportDeclaration node, JavaSource source) {
+        final ClassOrInterfaceType type = node.getType();
+        final String fqcn = type.toString();
+        final String name = type.getName();
+
+        source.importClass.put(name, fqcn);
+        source.addUnusedClass(name, fqcn);
+        super.visit(node, source);
+    }
+
+    @Override
+    public void visit(StaticImportOnDemandDeclaration node, JavaSource source) {
+        final String fqcn = node.getType().toString();
+        CachedASMReflector reflector = CachedASMReflector.getInstance();
+        reflector.reflectStaticStream(fqcn)
+                .forEach(md -> {
+                    source.staticImp.putIfAbsent(md.getName(), md.getDeclaringClass());
+                });
+        super.visit(node, source);
+    }
+
+    @Override
+    public void visit(TypeImportOnDemandDeclaration node, JavaSource source) {
+        final String pkg = node.getName().getQualifiedName();
+        CachedASMReflector reflector = CachedASMReflector.getInstance();
+        Map<String, String> symbols = reflector.getPackageClasses(pkg);
+        for (final Map.Entry<String, String> entry : symbols.entrySet()) {
+            source.importClass.put(entry.getKey(), entry.getValue());
+            source.addUnusedClass(entry.getKey(), entry.getValue());
+        }
+        super.visit(node, source);
+    }
 
     @Override
     public void visit(final EnumConstantDeclaration node, final JavaSource source) {
@@ -119,12 +134,13 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     @Override
     public void visit(final EnumDeclaration node, final JavaSource source) {
         log.traceEntry("EnumDeclaration name={} range={}", node.getName(), node.getRange());
-        final List<ClassOrInterfaceType> nImplements = node.getImplements();
+
+        final NodeList<ClassOrInterfaceType> nImplements = node.getImplements();
         String className = node.getName();
 
         final List<String> implClasses = new ArrayList<>(4);
         if (nImplements != null) {
-            for (ClassOrInterfaceType clazz : nImplements) {
+            for (final ClassOrInterfaceType clazz : nImplements) {
                 final String name = clazz.getName();
                 fqcnResolver.resolveFQCN(name, source).ifPresent(implClasses::add);
             }
@@ -154,9 +170,9 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     public void visit(final ClassOrInterfaceDeclaration node, final JavaSource source) {
         final EntryMessage entryMessage = log.traceEntry("ClassOrInterfaceDeclaration name={} range={}", node.getName(), node.getRange());
 
-        final List<ClassOrInterfaceType> nImplements = node.getImplements();
-        final List<ClassOrInterfaceType> nExtends = node.getExtends();
-        final List<TypeParameter> typeParameters = node.getTypeParameters();
+        final NodeList<ClassOrInterfaceType> nImplements = node.getImplements();
+        final NodeList<ClassOrInterfaceType> nExtends = node.getExtends();
+        final NodeList<TypeParameter> typeParameters = node.getTypeParameters();
 
         final List<String> typeParams = typeParameters.stream()
                 .map(TypeParameter::getName)
@@ -235,11 +251,11 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         log.traceExit(entryMessage);
     }
 
-    private void setClassTypeParameter(final List<TypeParameter> typeParameters, final ClassScope classScope, final JavaSource source) {
+    private void setClassTypeParameter(final NodeList<TypeParameter> typeParameters, final ClassScope classScope, final JavaSource source) {
         typeParameters.forEach(tp -> {
             final String name = tp.getName();
             if (name != null && !name.isEmpty()) {
-                final List<ClassOrInterfaceType> typeBounds = tp.getTypeBound();
+                final NodeList<ClassOrInterfaceType> typeBounds = tp.getTypeBound();
                 if (typeBounds != null && typeBounds.size() > 0) {
                     final ClassOrInterfaceType type = typeBounds.get(0);
                     final String typeBound = type.toString();
@@ -275,7 +291,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             });
 
             node.getThrows().forEach(ex -> {
-                final String exClass = ex.getType().toString();
+                final String exClass = ex.toString();
                 this.markUsedClass(exClass, source);
                 exceptions.add(exClass);
             });
@@ -289,7 +305,6 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
             typeScope.endMethod();
             typeScope.endBlock();
-
             final String modifier = toModifierString(node.getModifiers());
             final String fqcn = typeScope.getFQCN();
 
@@ -309,7 +324,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         source.getCurrentType().ifPresent(ts -> {
 
             for (final VariableDeclarator v : node.getVariables()) {
-                String type = node.getType().toString();
+                String type = node.getElementType().toString();
                 final VariableDeclaratorId declaratorId = v.getId();
                 type = checkArrayType(type, declaratorId);
 
@@ -374,8 +389,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             node.getParameters().forEach(parameter -> {
                 this.markUsedClass(parameter.getType().toString(), source);
             });
-
-            node.getThrows().forEach(referenceType -> this.markUsedClass(referenceType.getType().toString(), source));
+            node.getThrows().forEach(ex -> this.markUsedClass(ex.toString(), source));
             log.trace("start Method:{}, Range:{}", methodName, node.getRange());
             typeScope.startMethod(methodName);
             typeScope.startBlock(methodName, node.getRange(), nameExpr.getRange());
@@ -415,7 +429,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
         final List<String> exList = new ArrayList<>();
         for (ReferenceType rt : node.getThrows()) {
-            String exType = rt.getType().toString();
+            String exType = rt.toString();
             String typeP = "";
             int idx = exType.indexOf("<");
             if (idx > 0) {
@@ -516,18 +530,11 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     Optional<MethodCallSymbol> methodCall(final MethodCallExpr node, final JavaSource src, final BlockScope bs) {
         final NameExpr methodNameExpr = node.getNameExpr();
         final String methodName = methodNameExpr.getName();
-        final List<Expression> args = node.getArgs();
-        final Expression scope = node.getScope();
+        final NodeList<Expression> args = node.getArgs();
+        Optional<Expression> scopeExpression = node.getScope();
 
         final EntryMessage entryMessage = log.traceEntry("name={} range={}", node.getName(), node.getRange());
 
-        if (scope instanceof NameExpr) {
-            final String type = ((NameExpr) scope).getName();
-            if (Character.isUpperCase(type.charAt(0))) {
-                this.markUsedClass(type, src);
-            }
-        }
-        Optional<Expression> scopeExpression = Optional.ofNullable(scope);
         if (!scopeExpression.isPresent()) {
             if (src.staticImp.containsKey(methodName)) {
                 final String dec = src.staticImp.get(methodName);
@@ -538,6 +545,12 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                 final Expression expr = new ThisExpr();
                 expr.setRange(node.getRange());
                 scopeExpression = Optional.of(expr);
+            }
+        } else {
+            final String type = ((NameExpr) scopeExpression.get()).getName();
+            // TODO needs?
+            if (Character.isUpperCase(type.charAt(0))) {
+                this.markUsedClass(type, src);
             }
         }
         final Optional<MethodCallSymbol> result = scopeExpression.flatMap(scopeExpr -> {
@@ -685,15 +698,6 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     }
 
     @Override
-    public void visit(final ReferenceType node, final JavaSource source) {
-        final EntryMessage entryMessage = log.traceEntry("ReferenceType node={} range={}", node, node.getRange());
-        final String type = node.toString();
-        this.markUsedClass(this.toFQCN(type, source), source);
-        super.visit(node, source);
-        log.traceExit(entryMessage);
-    }
-
-    @Override
     public void visit(final ObjectCreationExpr node, final JavaSource source) {
         final EntryMessage entryMessage = log.traceEntry("node={} source={}", node, source);
         // new statement
@@ -725,7 +729,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     }
 
     private void constructorCall(final String createClass, final ObjectCreationExpr node, final JavaSource src, final BlockScope bs) {
-        final List<Expression> args = node.getArgs();
+        final NodeList<Expression> args = node.getArgs();
         if (args != null) {
             final Optional<TypeAnalyzer.MethodSignature> sig = typeAnalyzer.getMethodSignature(src, bs, createClass, args);
 
@@ -778,9 +782,8 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final EntryMessage entryMessage = log.traceEntry("VariableDeclarationExpr node='{}' range={}", node, node.getRange());
 
         source.getCurrentType().ifPresent(typeScope -> source.getCurrentBlock(typeScope).ifPresent(blockScope -> {
-
-            for (VariableDeclarator v : node.getVars()) {
-                String type = node.getType().toString();
+            for (final VariableDeclarator v : node.getVariables()) {
+                String type = node.toString();
                 final VariableDeclaratorId declaratorId = v.getId();
                 final String name = declaratorId.getName();
                 type = checkArrayType(type, declaratorId);
@@ -807,16 +810,14 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         source.getCurrentBlock().ifPresent(blockScope -> {
             if (blockScope.isLambdaBlock) {
                 // lambda return
-                final Expression expression = node.getExpr();
-                if (expression != null) {
-                    typeAnalyzer.analyzeExprClass(expression, blockScope, source).ifPresent(fqcn -> {
+                final Optional<Expression> expression = node.getExpr();
+                expression.ifPresent(expr -> {
+                    typeAnalyzer.analyzeExprClass(expr, blockScope, source).ifPresent(fqcn -> {
                         final String s = ClassNameUtils.boxing(fqcn);
                         log.trace("Lambda Block ReturnFQCN:{} Expr:{}", s, expression);
                         source.typeHint.addLambdaReturnType(s);
                     });
-                } else {
-                    source.typeHint.addLambdaReturnType("void");
-                }
+                });
             }
         });
         super.visit(node, source);
@@ -861,6 +862,11 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         } else {
             super.visit(node, source);
         }
+    }
+
+    private String toModifierString(EnumSet<com.github.javaparser.ast.Modifier> m) {
+        final AccessSpecifier accessSpecifier = com.github.javaparser.ast.Modifier.getAccessSpecifier(m);
+        return accessSpecifier.getCodeRepresenation();
     }
 
     private String toModifierString(final int modifier) {

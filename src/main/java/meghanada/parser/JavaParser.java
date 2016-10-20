@@ -8,6 +8,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.Map;
 
 public class JavaParser implements SourceParser {
@@ -25,7 +26,7 @@ public class JavaParser implements SourceParser {
         if (!JavaSource.isJavaFile(file)) {
             throw new IllegalArgumentException("Support only java file");
         }
-        final CompilationUnit cu = com.github.javaparser.JavaParser.parse(file, "UTF-8");
+        final CompilationUnit cu = com.github.javaparser.JavaParser.parse(file, Charset.forName("UTF-8"));
         final File src = file.getCanonicalFile();
 
         log.debug("start parse:{}", src);

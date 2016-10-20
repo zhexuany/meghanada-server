@@ -11,6 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.*;
+import java.nio.charset.Charset;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -71,7 +72,7 @@ public class ParameterNamesIndexer {
         // log.debug("file {}", fileName);
         try (InputStream in = zipFile.getInputStream(zipEntry)) {
             String fqcn = javaName.substring(0, javaName.length() - 5);
-            CompilationUnit cu = JavaParser.parse(in, "UTF-8");
+            CompilationUnit cu = JavaParser.parse(in, Charset.forName("UTF-8"));
             ParameterNameVisitor visitor = new ParameterNameVisitor(fqcn);
             visitor.visit(cu, this);
 

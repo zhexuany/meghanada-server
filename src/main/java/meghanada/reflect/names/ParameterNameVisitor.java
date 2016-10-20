@@ -1,5 +1,7 @@
 package meghanada.reflect.names;
 
+import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.PackageDeclaration;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -7,6 +9,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 public class ParameterNameVisitor extends VoidVisitorAdapter<Object> {
@@ -33,10 +36,9 @@ public class ParameterNameVisitor extends VoidVisitorAdapter<Object> {
     @Override
     public void visit(ClassOrInterfaceDeclaration n, Object arg) {
         super.visit(n, arg);
-        int mod = n.getModifiers();
-
-        if (!ModifierSet.isPrivate(mod)) {
-            List<BodyDeclaration> members = n.getMembers();
+        final EnumSet<Modifier> modifiers = n.getModifiers();
+        if (!modifiers.contains(Modifier.PRIVATE)) {
+            NodeList<BodyDeclaration<?>> members = n.getMembers();
             String clazz = n.getName();
             this.className = this.pkg + "." + clazz;
             log.debug("class {}", this.className);
@@ -72,10 +74,11 @@ public class ParameterNameVisitor extends VoidVisitorAdapter<Object> {
     }
 
     private void getParameterNames(MethodDeclaration methodDeclaration, boolean isInterface) {
-        int mod = methodDeclaration.getModifiers();
-        if (isInterface || ModifierSet.isPublic(mod)) {
+        // int mod = methodDeclaration.getModifiers();
+        final EnumSet<Modifier> modifiers = methodDeclaration.getModifiers();
+        if (isInterface || modifiers.contains(Modifier.PUBLIC)) {
             String methodName = methodDeclaration.getName();
-            List<Parameter> parameters = methodDeclaration.getParameters();
+            NodeList<Parameter> parameters = methodDeclaration.getParameters();
             names.className = this.className;
             List<List<ParameterName>> parameterNames = names.names.get(methodName);
             if (parameterNames == null) {
