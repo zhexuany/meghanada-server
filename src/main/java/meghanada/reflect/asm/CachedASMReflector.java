@@ -225,7 +225,7 @@ public class CachedASMReflector {
     public List<ClassIndex> fuzzySearchClasses(final String keyword, final boolean anno) {
         final int length = keyword.length() + 1;
         return this.globalClassIndex.values()
-                .stream()
+                .parallelStream()
                 .filter(classIndex -> {
                     if (anno && !classIndex.isAnnotation) {
                         return false;
@@ -257,7 +257,7 @@ public class CachedASMReflector {
 
     public List<ClassIndex> searchClasses(final String keyword, final boolean partial, final boolean anno) {
         return this.globalClassIndex.values()
-                .stream()
+                .parallelStream()
                 .filter(classIndex -> {
                     if (anno && !classIndex.isAnnotation) {
                         return false;

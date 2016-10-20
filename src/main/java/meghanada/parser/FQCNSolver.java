@@ -75,9 +75,9 @@ class FQCNSolver {
     }
 
     Optional<String> solveSymbolFQCN(final String name, final JavaSource source, final int line) {
+        final EntryMessage entryMessage = log.traceEntry("name={} line={}", name, line);
         final Optional<BlockScope> currentBlock = source.getCurrentBlock();
-
-        return currentBlock.map(bs -> {
+        final Optional<String> result = currentBlock.map(bs -> {
 
             // search current
             final Map<String, Variable> declaratorMap = bs.getDeclaratorMap();
@@ -107,6 +107,7 @@ class FQCNSolver {
                 return null;
             }).orElseGet(() -> solveFQCN(name, source).orElse(null));
         });
+        return log.traceExit(entryMessage, result);
     }
 
     Optional<String> solveFQCN(final String name, final JavaSource source) {
@@ -165,7 +166,7 @@ class FQCNSolver {
 
         final Optional<TypeScope> currentType = source.getCurrentType();
         if (name.equals("super")
-            && (currentType.isPresent() && currentType.get() instanceof ClassScope)) {
+                && (currentType.isPresent() && currentType.get() instanceof ClassScope)) {
 
             final ClassScope classScope = (ClassScope) currentType.get();
             final List<String> supers = classScope.getExtendsClasses();
@@ -207,7 +208,15 @@ class FQCNSolver {
         if (searchName.contains(".")) {
             final Optional<ClassIndex> classIndex = reflector.containsClassIndex(searchName);
             if (classIndex.isPresent()) {
-                final Optional<String> result = Optional.of(classIndex.get().getDeclaration());
+                final Optional<String> result = Optional.of(className.replaceClassName(classIndex.get().getDeclaration()));
+                log.trace("solved fqcn name={} result={}", searchName, result);
+                return log.traceExit(entryMessage, result);
+            }
+
+            // and search inner class
+            final Optional<String> result1 = searchInnerClassFromOwn(source, searchName);
+            if (result1.isPresent()) {
+                final Optional<String> result = Optional.of(className.replaceClassName(result1.get()));
                 log.trace("solved fqcn name={} result={}", searchName, result);
                 return log.traceExit(entryMessage, result);
             }
@@ -215,7 +224,7 @@ class FQCNSolver {
 
         // 1. check primitive
         if (ClassNameUtils.isPrimitive(searchName)) {
-            final Optional<String> result = Optional.ofNullable(className.addTypeParameters(searchName));
+            final Optional<String> result = Optional.ofNullable(className.replaceClassName(searchName));
 
             log.trace("solved primitive name={} result={}", searchName, result);
             return log.traceExit(entryMessage, result);
@@ -225,7 +234,7 @@ class FQCNSolver {
         fqcn = source.importClass.get(searchName);
         if (fqcn != null) {
             // TODO solve typeParameter
-            final Optional<String> result = Optional.ofNullable(className.addTypeParameters(fqcn));
+            final Optional<String> result = Optional.ofNullable(className.replaceClassName(fqcn));
             log.trace("solved import class name={} result={}", searchName, result);
             return log.traceExit(entryMessage, result);
         }
@@ -233,7 +242,7 @@ class FQCNSolver {
         // 3. solve from globals (java.lang.*)
         fqcn = this.globalClassSymbol.get(searchName);
         if (fqcn != null) {
-            final Optional<String> result = Optional.ofNullable(className.addTypeParameters(fqcn));
+            final Optional<String> result = Optional.ofNullable(className.replaceClassName(fqcn));
             log.trace("solved default package name={} result={}", searchName, result);
             return log.traceExit(entryMessage, result);
         }
@@ -248,7 +257,7 @@ class FQCNSolver {
             }
 
             final String result = reflector.containsClassIndex(s)
-                    .map(classIndex -> className.addTypeParameters(classIndex.getDeclaration()))
+                    .map(classIndex -> className.replaceClassName(classIndex.getDeclaration()))
                     .orElse(null);
             return result;
         });
@@ -280,7 +289,7 @@ class FQCNSolver {
 
         if (fqcn != null && ClassNameUtils.getSimpleName(fqcn)
                 .equals(ClassNameUtils.getSimpleName(searchName))) {
-            final Optional<String> result = Optional.ofNullable(className.addTypeParameters(fqcn));
+            final Optional<String> result = Optional.ofNullable(className.replaceClassName(fqcn));
             log.trace("solved current class name={} result={}", searchName, result);
             return log.traceExit(entryMessage, result);
         }
@@ -289,6 +298,26 @@ class FQCNSolver {
         final Optional<String> result = this.searchInnerClass(source, className, searchName);
 
         return log.traceExit(entryMessage, result);
+    }
+
+    private Optional<String> searchInnerClassFromOwn(final JavaSource source, final String name) {
+
+        final Optional<String> innerClassName = ClassNameUtils.toInnerClassName(name);
+        if (name.indexOf(".") > 0 && innerClassName.isPresent()) {
+            CachedASMReflector reflector = CachedASMReflector.getInstance();
+            final String className = innerClassName.get();
+            final List<ClassIndex> list = reflector.searchClasses(className, false, false);
+            if (list.size() > 0) {
+                final ClassIndex index = list.get(0);
+                final String declaration = index.getDeclaration();
+                final String innerFQCN = source.getPkg() + "." + name;
+
+                if (innerFQCN.equals(declaration)) {
+                    return Optional.of(index.getRawDeclaration());
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private Optional<String> searchInnerClass(final JavaSource source, final ClassName className, final String searchName) {
@@ -317,13 +346,13 @@ class FQCNSolver {
 
         final CachedASMReflector reflector = CachedASMReflector.getInstance();
         if (ts.getType().equals(searchName) && reflector.containsFQCN(parentClass)) {
-            final String solved = className.addTypeParameters(parentClass);
+            final String solved = className.replaceClassName(parentClass);
             return log.traceExit(entryMessage, solved);
         }
 
         final String innerName = parentClass + '$' + searchName;
         if (reflector.containsFQCN(innerName) && innerName.endsWith(searchName)) {
-            final String solved = className.addTypeParameters(innerName);
+            final String solved = className.replaceClassName(innerName);
             return log.traceExit(entryMessage, solved);
         }
 
@@ -335,7 +364,7 @@ class FQCNSolver {
                         log.trace("search inner name={}", innerFQCN);
 
                         if (reflector.containsFQCN(innerFQCN)) {
-                            return className.addTypeParameters(innerFQCN);
+                            return className.replaceClassName(innerFQCN);
                         }
                         return null;
                     })
@@ -373,7 +402,7 @@ class FQCNSolver {
         {
             // check primitive
             if (ClassNameUtils.isPrimitive(symbolName)) {
-                final Optional<String> result = Optional.ofNullable(className.addTypeParameters(symbolName));
+                final Optional<String> result = Optional.ofNullable(className.replaceClassName(symbolName));
                 return log.traceExit(entryMessage, result);
             }
         }
@@ -384,7 +413,7 @@ class FQCNSolver {
                 .orElseGet(() -> this.solveFromSource(name, source));
 
         if (resultFQCN != null) {
-            final Optional<String> result = Optional.ofNullable(className.addTypeParameters(resultFQCN));
+            final Optional<String> result = Optional.ofNullable(className.replaceClassName(resultFQCN));
             return log.traceExit(entryMessage, result);
         }
         final Optional<String> result = Optional.empty();

@@ -477,8 +477,8 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             final String scopeString = scopeExpr.toString();
             return this.typeAnalyzer.analyzeExprClass(scopeExpr, blockScope, source)
                     .flatMap(exprClass -> {
-                        final String declaringClass = this.toFQCN(exprClass, source);
 
+                        final String declaringClass = this.toFQCN(exprClass, source);
                         return this.createFieldAccessSymbol(fieldName,
                                 scopeString,
                                 declaringClass,
@@ -672,18 +672,15 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     @Override
     public void visit(final ObjectCreationExpr node, final JavaSource source) {
-        final EntryMessage entryMessage = log.traceEntry("node={} source={}", node, source);
+        final EntryMessage entryMessage = log.traceEntry("ObjectCreationExpr node={} range={}", node, node.getRange());
         // new statement
-        String createType = node.getType().getName();
-        this.markUsedClass(createType, source);
-        if (source.isImported(createType)) {
-            Optional<String> fqcn = fqcnSolver.solveFQCN(createType, source);
-
+        final String className = node.getType().getName();
+        final String createClassName = fqcnSolver.solveFQCN(className, source).orElse(className);
+        this.markUsedClass(createClassName, source);
+        if (source.isImported(createClassName)) {
             source.getCurrentBlock().ifPresent(bs -> {
-                final String createClass = fqcn.orElse(createType);
-                this.constructorCall(createClass, node, source, bs);
+                this.constructorCall(createClassName, node, source, bs);
             });
-
         }
         log.traceExit(entryMessage);
     }
@@ -702,13 +699,14 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     }
 
     private void constructorCall(final String createClass, final ObjectCreationExpr node, final JavaSource src, final BlockScope bs) {
+        final EntryMessage entryMessage = log.traceEntry("constructorCall class={}", createClass);
         final NodeList<Expression> args = node.getArgs();
         if (args != null) {
-            final Optional<TypeAnalyzer.MethodSignature> sig = typeAnalyzer.getMethodSignature(src, bs, createClass, args);
+            final Optional<TypeAnalyzer.MethodSignature> signature = typeAnalyzer.getMethodSignature(src, bs, createClass, args);
 
-            final String maybeReturn = sig.flatMap(ms ->
+            final String maybeReturn = signature.flatMap(ms ->
                     this.typeAnalyzer.getConstructor(src, createClass, args.size(), ms.signature).
-                            map(CandidateUnit::getReturnType)).orElse(null);
+                            map(CandidateUnit::getReturnType)).orElse(createClass);
 
             final String clazz = ClassNameUtils.getSimpleName(createClass);
 
@@ -720,6 +718,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             mcs.returnType = maybeReturn;
             bs.addMethodCall(mcs);
         }
+        log.traceExit(entryMessage);
     }
 
     @Override
@@ -756,13 +755,14 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
         source.getCurrentType().ifPresent(typeScope -> source.getCurrentBlock(typeScope).ifPresent(blockScope -> {
             for (final VariableDeclarator v : node.getVariables()) {
-                String type = node.toString();
+                String type = v.getType().toString();
                 final VariableDeclaratorId declaratorId = v.getId();
                 final String name = declaratorId.getName();
                 type = type + node.getArrayBracketPairsAfterElementType().toString();
-                this.markUsedClass(type, source);
 
                 fqcnSolver.solveFQCN(type, source).ifPresent(fqcn -> {
+                    log.trace("variableDeclarationExpr fqcn={}", fqcn);
+                    this.markUsedClass(fqcn, source);
                     final Variable ns = new Variable(
                             typeScope.getFQCN(),
                             name,

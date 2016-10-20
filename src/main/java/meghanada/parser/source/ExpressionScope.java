@@ -41,7 +41,7 @@ public class ExpressionScope extends Scope {
         final Position mcsEnd = mcs.getRange().end;
 
         if (mcsEnd.column + 1 == endCol && mcsEnd.line == endLine) {
-            log.trace("expressionName:{} endCol:{} endLine:{} mcsPos:{}", this.name, endCol, endLine, mcsEnd);
+            log.trace("add method call expressionName:{} endCol:{} endLine:{} mcsPos:{}", this.name, endCol, endLine, mcsEnd);
             this.expressionReturn = mcs;
         }
         return super.addMethodCall(mcs);

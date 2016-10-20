@@ -36,14 +36,14 @@ public final class ClassName {
         }
 
         if (classes != null && classes.containsKey(name)) {
-            return this.addTypeParameters(classes.get(name));
+            return this.replaceClassName(classes.get(name));
         }
 
         {
             if (ownPkg != null) {
                 final String result = cachedASMReflector.classNameToFQCN(ownPkg + '.' + name);
                 if (result != null) {
-                    return this.addTypeParameters(result);
+                    return this.replaceClassName(result);
                 }
             }
         }
@@ -51,7 +51,7 @@ public final class ClassName {
         // full search
         final String result = cachedASMReflector.classNameToFQCN(name);
         if (result != null) {
-            return this.addTypeParameters(result);
+            return this.replaceClassName(result);
         }
         return null;
     }
@@ -71,7 +71,7 @@ public final class ClassName {
         return name;
     }
 
-    public String addTypeParameters(String name) {
+    public String replaceClassName(String name) {
         if (typeIndex >= 0) {
             return name + this.rawName.substring(typeIndex);
         }

@@ -937,7 +937,7 @@ public class JavaParserTest extends GradleTestBase {
 
     @Test
     public void testParseSimple2() throws Exception {
-        JavaSource source = traceIt(() -> {
+        JavaSource source = timeIt(() -> {
             JavaParser parser = new JavaParser();
             return parser.parse(new File("src/test/java/meghanada/Gen1.java"));
         });
@@ -948,6 +948,26 @@ public class JavaParserTest extends GradleTestBase {
             assertEquals("Gen1", type);
             assertEquals(6, result.size());
         }
+    }
+
+    @Test
+    public void testParseSimple3() throws Exception {
+        JavaSource source = traceIt(() -> {
+            JavaParser parser = new JavaParser();
+            return parser.parse(new File("src/test/java/meghanada/Gen2.java"));
+        });
+
+        TypeScope typeScope1 = source.getTypeScopes().get(0);
+        List<MemberDescriptor> result1 = typeScope1.getMemberDescriptors();
+        String type1 = typeScope1.getType();
+        assertEquals("Gen2$Entry", type1);
+        assertEquals(2, result1.size());
+
+        TypeScope typeScope2 = source.getTypeScopes().get(1);
+        List<MemberDescriptor> result2 = typeScope2.getMemberDescriptors();
+        String type2 = typeScope2.getType();
+        assertEquals("Gen2", type2);
+        assertEquals(4, result2.size());
 
     }
 
