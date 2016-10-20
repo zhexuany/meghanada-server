@@ -13,7 +13,7 @@ import java.io.File;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-public class FQCNResolverTest extends GradleTestBase {
+public class FQCNSolverTest extends GradleTestBase {
 
     @org.junit.BeforeClass
     public static void beforeClass() throws Exception {
@@ -36,17 +36,17 @@ public class FQCNResolverTest extends GradleTestBase {
     public void resolveFQCN1() throws Exception {
         JavaParser parser = new JavaParser();
         assertNotNull(parser);
-        FQCNResolver resolver = FQCNResolver.getInstance();
+        FQCNSolver resolver = FQCNSolver.getInstance();
         {
             String fqcn = Config.debugIt(() -> {
                 final JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
-                return resolver.resolveFQCN("log", source).get();
+                return resolver.solveFQCN("log", source).get();
             });
             assertEquals("org.apache.logging.log4j.Logger", fqcn);
         }
         {
             final JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
-            String fqcn = resolver.resolveFQCN("this", source).get();
+            String fqcn = resolver.solveFQCN("this", source).get();
             assertEquals("meghanada.reflect.asm.ASMReflector", fqcn);
         }
     }
@@ -57,9 +57,9 @@ public class FQCNResolverTest extends GradleTestBase {
         assertNotNull(parser);
         JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
         assertNotNull(source);
-        FQCNResolver resolver = FQCNResolver.getInstance();
+        FQCNSolver resolver = FQCNSolver.getInstance();
         {
-            String fqcn = resolver.resolveFQCN("Map$Entry<String, Long>", source).get();
+            String fqcn = resolver.solveFQCN("Map$Entry<String, Long>", source).get();
             assertEquals("java.util.Map$Entry<String, Long>", fqcn);
         }
     }
@@ -70,9 +70,9 @@ public class FQCNResolverTest extends GradleTestBase {
         assertNotNull(parser);
         JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
         assertNotNull(source);
-        FQCNResolver resolver = FQCNResolver.getInstance();
+        FQCNSolver resolver = FQCNSolver.getInstance();
         {
-            String fqcn = resolver.resolveFQCN("Map.Entry<String, Long>", source).get();
+            String fqcn = resolver.solveFQCN("Map.Entry<String, Long>", source).get();
             assertEquals("java.util.Map$Entry<String, Long>", fqcn);
         }
     }
@@ -83,9 +83,9 @@ public class FQCNResolverTest extends GradleTestBase {
         assertNotNull(parser);
         JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
         assertNotNull(source);
-        FQCNResolver resolver = FQCNResolver.getInstance();
+        FQCNSolver resolver = FQCNSolver.getInstance();
         {
-            String fqcn = resolver.resolveFQCN("Map$Entry", source).get();
+            String fqcn = resolver.solveFQCN("Map$Entry", source).get();
             assertEquals("java.util.Map$Entry", fqcn);
         }
     }
@@ -96,9 +96,9 @@ public class FQCNResolverTest extends GradleTestBase {
         assertNotNull(parser);
         JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
         assertNotNull(source);
-        FQCNResolver resolver = FQCNResolver.getInstance();
+        FQCNSolver resolver = FQCNSolver.getInstance();
         {
-            String fqcn = resolver.resolveFQCN("Map.Entry", source).get();
+            String fqcn = resolver.solveFQCN("Map.Entry", source).get();
             assertEquals("java.util.Map$Entry", fqcn);
         }
     }

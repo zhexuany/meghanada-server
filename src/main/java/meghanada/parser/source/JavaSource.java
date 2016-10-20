@@ -266,21 +266,21 @@ public class JavaSource {
     }
 
     public boolean isImported(String type) {
-        log.traceEntry("className={}", type);
+        final EntryMessage entryMessage = log.traceEntry("className={}", type);
         if (type.equals("void")) {
-            return log.traceExit(true);
+            return log.traceExit(entryMessage, true);
         }
         type = ClassNameUtils.boxing(type);
         final ClassName className = new ClassName(type);
         final String name = className.getName();
         if (this.importClass.containsKey(name)) {
-            return log.traceExit(true);
+            return log.traceExit(entryMessage, true);
         }
 
         final CachedASMReflector reflector = CachedASMReflector.getInstance();
         final Map<String, String> standardClasses = reflector.getStandardClasses();
         if (standardClasses.containsKey(name)) {
-            return log.traceExit(true);
+            return log.traceExit(entryMessage, true);
         }
 
         {
@@ -289,7 +289,7 @@ public class JavaSource {
                 String pkgClassName = pkg + "." + name;
                 Optional<ClassIndex> classIndex = reflector.containsClassIndex(pkgClassName);
                 if (classIndex.isPresent()) {
-                    return log.traceExit(true);
+                    return log.traceExit(entryMessage, true);
                 }
             }
         }
@@ -298,11 +298,10 @@ public class JavaSource {
             // className is FQCN
             Optional<ClassIndex> classIndex = reflector.containsClassIndex(name);
             if (classIndex.isPresent()) {
-                return log.traceExit(true);
+                return log.traceExit(entryMessage, true);
             }
-
         }
-        return log.traceExit(false);
+        return log.traceExit(entryMessage, false);
     }
 
     public Map<String, List<String>> searchMissingImport() {

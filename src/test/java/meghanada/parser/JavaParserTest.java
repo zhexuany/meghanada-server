@@ -441,7 +441,7 @@ public class JavaParserTest extends GradleTestBase {
         assertNotNull(parser);
 
         final Stopwatch stopwatch = Stopwatch.createStarted();
-        JavaSource source = parser.parse(new File("./src/main/java/meghanada/parser/FQCNResolver.java"));
+        JavaSource source = parser.parse(new File("./src/main/java/meghanada/parser/FQCNSolver.java"));
         System.out.println(stopwatch.stop());
 
         assertNotNull(source);
@@ -449,7 +449,7 @@ public class JavaParserTest extends GradleTestBase {
         for (TypeScope typeScope : source.getTypeScopes()) {
             List<MemberDescriptor> result = typeScope.getMemberDescriptors();
             String type = typeScope.getFQCN();
-            assertEquals("meghanada.parser.FQCNResolver", type);
+            assertEquals("meghanada.parser.FQCNSolver", type);
             assertEquals(24, result.size());
         }
 
@@ -946,7 +946,7 @@ public class JavaParserTest extends GradleTestBase {
             List<MemberDescriptor> result = typeScope.getMemberDescriptors();
             String type = typeScope.getType();
             assertEquals("Gen1", type);
-            assertEquals(5, result.size());
+            assertEquals(6, result.size());
         }
 
     }

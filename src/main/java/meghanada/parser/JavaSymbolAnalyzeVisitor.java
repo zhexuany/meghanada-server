@@ -17,7 +17,6 @@ import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.TypeParameter;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
-import com.google.common.base.Strings;
 import meghanada.parser.source.*;
 import meghanada.reflect.*;
 import meghanada.reflect.asm.CachedASMReflector;
@@ -33,22 +32,13 @@ import java.util.stream.Collectors;
 class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     private static Logger log = LogManager.getLogger(JavaSymbolAnalyzeVisitor.class);
-    private final FQCNResolver fqcnResolver;
+    private final FQCNSolver fqcnSolver;
     private final TypeAnalyzer typeAnalyzer;
 
     JavaSymbolAnalyzeVisitor() {
-        this.fqcnResolver = FQCNResolver.getInstance();
+        this.fqcnSolver = FQCNSolver.getInstance();
         this.typeAnalyzer = new TypeAnalyzer(this);
     }
-
-    static String checkArrayType(String type, final VariableDeclaratorId declaratorId) {
-        final int cnt = declaratorId.getArrayBracketPairsAfterId().size();
-        if (cnt > 0) {
-            type = type + Strings.repeat(ClassNameUtils.ARRAY, cnt);
-        }
-        return type;
-    }
-
 
     @Override
     public void visit(final PackageDeclaration n, final JavaSource source) {
@@ -56,12 +46,12 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         super.visit(n, source);
     }
 
-
     @Override
     public void visit(SingleStaticImportDeclaration node, JavaSource source) {
 
         final String member = node.getStaticMember();
         final String fqcn = node.getType().toString();
+        log.trace("member={} fqcn={}", member, fqcn);
         source.staticImp.putIfAbsent(member, fqcn);
         super.visit(node, source);
     }
@@ -70,8 +60,8 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     public void visit(SingleTypeImportDeclaration node, JavaSource source) {
         final ClassOrInterfaceType type = node.getType();
         final String fqcn = type.toString();
-        final String name = type.getName();
-
+        final String name = ClassNameUtils.getSimpleName(type.getName());
+        log.trace("import name={} fqcn={}", name, fqcn);
         source.importClass.put(name, fqcn);
         source.addUnusedClass(name, fqcn);
         super.visit(node, source);
@@ -142,7 +132,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         if (nImplements != null) {
             for (final ClassOrInterfaceType clazz : nImplements) {
                 final String name = clazz.getName();
-                fqcnResolver.resolveFQCN(name, source).ifPresent(implClasses::add);
+                fqcnSolver.solveFQCN(name, source).ifPresent(implClasses::add);
             }
         }
         final TypeScope current = source.currentType.peek();
@@ -192,7 +182,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         if (nExtends != null) {
             for (final ClassOrInterfaceType ci : nExtends) {
                 final String name = ci.getName();
-                final Optional<String> clazz = this.fqcnResolver.resolveFQCN(name, source);
+                final Optional<String> clazz = this.fqcnSolver.solveFQCN(name, source);
 
                 if (clazz.isPresent()) {
                     final String fqcn = clazz.get();
@@ -205,7 +195,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                                 final String declaration = md.getDeclaration();
                                 if (declaration.contains("public")
                                         || declaration.contains("protected")) {
-                                    final String ret = this.fqcnResolver.resolveFQCN(md.getReturnType(), source).orElse(md.getReturnType());
+                                    final String ret = this.fqcnSolver.solveFQCN(md.getReturnType(), source).orElse(md.getReturnType());
                                     final Variable ns = new Variable(
                                             md.getDeclaringClass(),
                                             md.getName(),
@@ -224,7 +214,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         if (nImplements != null) {
             for (final ClassOrInterfaceType ci : nImplements) {
                 final String name = ci.getName();
-                final Optional<String> clazz = fqcnResolver.resolveFQCN(name, source);
+                final Optional<String> clazz = fqcnSolver.solveFQCN(name, source);
                 if (clazz.isPresent()) {
                     final String fqcn = clazz.get();
                     implClasses.add(fqcn);
@@ -261,11 +251,11 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                         final String tb = classOrInterfaceType.getName();
                         final String fqcn = this.toFQCN(tb, source);
                         classScope.getTypeParameterMap().put(name, fqcn);
-                        log.trace("put typeParameterMap name={} typeBound={} fqcn={}", name, tb, fqcn);
+                        log.trace("put class typeParameterMap name={} typeBound={} fqcn={}", name, tb, fqcn);
                     });
                 } else {
                     classScope.getTypeParameterMap().put(name, ClassNameUtils.OBJECT_CLASS);
-                    log.trace("put typeParameterMap name={} typeBound=Object fqcn={}", name, ClassNameUtils.OBJECT_CLASS);
+                    log.trace("put class typeParameterMap name={} typeBound=Object fqcn={}", name, ClassNameUtils.OBJECT_CLASS);
                 }
             }
         });
@@ -273,36 +263,38 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     @Override
     public void visit(final ConstructorDeclaration node, final JavaSource source) {
-        final TypeScope typeScope = source.currentType.peek();
-        if (typeScope != null) {
-
+        final EntryMessage entryMessage = log.traceEntry("ConstructorDeclaration:{}, Range:{}", node.getDeclarationAsString(), node.getRange());
+        source.getCurrentType().ifPresent(typeScope -> {
             final NameExpr nameExpr = node.getNameExpr();
-            final String name = nameExpr.getName();
+            final String constructorName = nameExpr.getName();
 
-            List<MethodParameter> parameters = new ArrayList<>(4);
-            List<String> exceptions = new ArrayList<>(2);
+            final List<MethodParameter> parameters = new ArrayList<>(4);
+            final List<String> exceptions = new ArrayList<>(2);
+
             node.getParameters().forEach(parameter -> {
-                final String pName = parameter.getName();
-                final Optional<String> optType = fqcnResolver.resolveFQCN(pName, source);
-                final Type type = parameter.getType();
-                this.markUsedClass(type.toString(), source);
+                final String parameterName = parameter.getName();
+                final String type = parameter.getType().toString();
+                final Optional<String> optType = fqcnSolver.solveFQCN(type, source);
+                this.markUsedClass(type, source);
 
-                final String fqcn = optType.orElse(type.toString());
-                parameters.add(new MethodParameter(fqcn, pName));
+                final String fqcn = optType.orElse(type);
+                log.trace("add parameter name={} fqcn={}", parameterName, fqcn);
+                parameters.add(new MethodParameter(fqcn, parameterName));
             });
 
-            node.getThrows().forEach(ex -> {
-                final String exClass = ex.toString();
-                this.markUsedClass(exClass, source);
-                exceptions.add(exClass);
+            node.getThrows().forEach(exception -> {
+                final String exType = exception.toString();
+                this.markUsedClass(exType, source);
+                final String fqcn = fqcnSolver.solveFQCN(exType, source).orElse(exType);
+                log.trace("add exception fqcn={}", fqcn);
+                exceptions.add(fqcn);
             });
 
-            typeScope.startMethod(name);
+            typeScope.startMethod(constructorName);
             // start method
-            typeScope.startBlock(name, node.getRange(), nameExpr.getRange());
-            final EntryMessage entryMessage = log.traceEntry("start Constructor:{}, Range:{}", name, node.getRange());
+            typeScope.startBlock(constructorName, node.getRange(), nameExpr.getRange());
 
-            super.visit(node, source);
+            super.visit(node.getBody(), source);
 
             typeScope.endMethod();
             typeScope.endBlock();
@@ -310,25 +302,23 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             final String fqcn = typeScope.getFQCN();
 
             // TODO need hasDefault?
-            final String[] exs = exceptions.toArray(new String[exceptions.size()]);
-            final MemberDescriptor memberDescriptor = new MethodDescriptor(fqcn, name, modifier, parameters, exs, fqcn, false);
-            typeScope.addMemberDescriptor(memberDescriptor);
-
-            log.traceExit(entryMessage);
-        }
+            final String[] throwExceptions = exceptions.toArray(new String[exceptions.size()]);
+            final MemberDescriptor md = new MethodDescriptor(fqcn, constructorName, modifier, parameters, throwExceptions, fqcn, false);
+            typeScope.addMemberDescriptor(md);
+        });
+        log.traceExit(entryMessage);
     }
 
     @Override
     public void visit(final FieldDeclaration node, final JavaSource source) {
 
-        final EntryMessage entryMessage = log.traceEntry("Start FieldDeclaration:{}, Range:{}", node, node.getRange());
+        final EntryMessage entryMessage = log.traceEntry("FieldDeclaration:{}, Range:{}", node, node.getRange());
         source.getCurrentType().ifPresent(ts -> {
 
             for (final VariableDeclarator v : node.getVariables()) {
                 String type = node.getElementType().toString();
                 final VariableDeclaratorId declaratorId = v.getId();
-                type = checkArrayType(type, declaratorId);
-
+                type = type + node.getArrayBracketPairsAfterElementType().toString();
                 Optional<String> result = this.resolveFQCN(type, source);
                 log.debug("result:{} {}", result, declaratorId);
 
@@ -450,7 +440,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final String returnType = node.getType().toString();
         String returnTypeFQCN = source.importClass.get(returnType);
         if (returnTypeFQCN == null) {
-            final Optional<String> resolveFQCN = fqcnResolver.resolveFQCN(returnType, source);
+            final Optional<String> resolveFQCN = fqcnSolver.solveFQCN(returnType, source);
             returnTypeFQCN = resolveFQCN.orElse(ClassNameUtils.getPackage(typeScope.getFQCN()) + "." + returnType);
         }
 
@@ -661,10 +651,10 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
         final String tempType = node.isVarArgs() ? node.getType().toString() + ClassNameUtils.VA_ARGS : node.getType().toString();
         final VariableDeclaratorId declaratorId = node.getId();
-        final String type = checkArrayType(tempType, declaratorId);
+        final String type = tempType;
 
         source.getCurrentType().ifPresent(ts -> source.getCurrentBlock(ts)
-                .ifPresent(bs -> fqcnResolver.resolveFQCN(type, source).ifPresent(fqcn -> {
+                .ifPresent(bs -> fqcnSolver.solveFQCN(type, source).ifPresent(fqcn -> {
                     final String name = declaratorId.getName();
                     final Variable ns = new Variable(
                             ts.getFQCN(),
@@ -688,7 +678,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                 final String name = variableDeclaratorId.getName();
                 // sampling first
                 final Type exType = except.getType();
-                final String exTypeFQCN = fqcnResolver.resolveFQCN(exType.toString(), source).orElse(exType.toString());
+                final String exTypeFQCN = fqcnSolver.solveFQCN(exType.toString(), source).orElse(exType.toString());
                 final Variable ns = new Variable(
                         typeScope.getFQCN(),
                         name,
@@ -708,7 +698,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         String createType = node.getType().getName();
         this.markUsedClass(createType, source);
         if (source.isImported(createType)) {
-            Optional<String> fqcn = fqcnResolver.resolveFQCN(createType, source);
+            Optional<String> fqcn = fqcnSolver.solveFQCN(createType, source);
 
             source.getCurrentBlock().ifPresent(bs -> {
                 final String createClass = fqcn.orElse(createType);
@@ -790,10 +780,10 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                 String type = node.toString();
                 final VariableDeclaratorId declaratorId = v.getId();
                 final String name = declaratorId.getName();
-                type = checkArrayType(type, declaratorId);
+                type = type + node.getArrayBracketPairsAfterElementType().toString();
                 this.markUsedClass(type, source);
 
-                fqcnResolver.resolveFQCN(type, source).ifPresent(fqcn -> {
+                fqcnSolver.solveFQCN(type, source).ifPresent(fqcn -> {
                     final Variable ns = new Variable(
                             typeScope.getFQCN(),
                             name,
@@ -929,7 +919,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             }
         }
 
-        return this.fqcnResolver.resolveFQCN(returnFQCN, source).orElse(returnFQCN);
+        return this.fqcnSolver.solveFQCN(returnFQCN, source).orElse(returnFQCN);
     }
 
     private Optional<String> resolveFQCN(final String type, final JavaSource source) {
@@ -947,6 +937,6 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             }
         }
 
-        return this.fqcnResolver.resolveFQCN(returnFQCN, source);
+        return this.fqcnSolver.solveFQCN(returnFQCN, source);
     }
 }

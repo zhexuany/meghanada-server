@@ -33,12 +33,12 @@ class TypeAnalyzer {
     private static Logger log = LogManager.getLogger(TypeAnalyzer.class);
 
     private final JavaSymbolAnalyzeVisitor visitor;
-    private final FQCNResolver fqcnResolver;
+    private final FQCNSolver fqcnSolver;
     private final List<AnalyzeReturnTypeFunction> returnTypeFunctions;
 
     TypeAnalyzer(final JavaSymbolAnalyzeVisitor visitor) {
         this.visitor = visitor;
-        this.fqcnResolver = FQCNResolver.getInstance();
+        this.fqcnSolver = FQCNSolver.getInstance();
         this.returnTypeFunctions = this.getReturnTypeAnalyzeFunctions();
     }
 
@@ -127,10 +127,10 @@ class TypeAnalyzer {
             lambdaMethod.putTypeParameter(returnTypeParameter, lambdaReturnType);
             replaceCallMethodType(callMethod, returnTypeParameter, lambdaReturnType);
 
-            return fqcnResolver.resolveFQCN(callMethod.getRawReturnType(), source);
+            return fqcnSolver.solveFQCN(callMethod.getRawReturnType(), source);
         } else if (lambdaMethod != null && lambdaMethod.fixedReturnType()) {
 
-            return fqcnResolver.resolveFQCN(callMethod.getRawReturnType(), source);
+            return fqcnSolver.solveFQCN(callMethod.getRawReturnType(), source);
         }
         return Optional.empty();
     }
@@ -151,7 +151,7 @@ class TypeAnalyzer {
                 .when(eq(ClassExpr.class)).get(() -> {
                     final ClassExpr clsExpr = (ClassExpr) expression;
                     final String type = clsExpr.getType().toString();
-                    final String resolvedClass = this.fqcnResolver.resolveFQCN(type, source).orElse("java.lang.Class");
+                    final String resolvedClass = this.fqcnSolver.solveFQCN(type, source).orElse("java.lang.Class");
                     log.trace("ClassExpr resolvedClass={}", resolvedClass);
                     if (!resolvedClass.equals("java.lang.Class")) {
                         return Optional.of("java.lang.Class<" + resolvedClass + ">");
@@ -203,7 +203,7 @@ class TypeAnalyzer {
                 .when(eq(NameExpr.class)).get(() -> {
                     final NameExpr x = (NameExpr) expression;
                     final int line = x.getRange().begin.line;
-                    final Optional<String> result = this.fqcnResolver.resolveSymbolFQCN(x.getName(), source, line);
+                    final Optional<String> result = this.fqcnSolver.solveSymbolFQCN(x.getName(), source, line);
                     result.ifPresent(fqcn -> {
                         if (!bs.containsSymbol(x.getName())) {
                             final String parent = bs.getName();
@@ -240,7 +240,7 @@ class TypeAnalyzer {
                 .when(eq(ObjectCreationExpr.class)).get(() -> {
                     final ObjectCreationExpr x = (ObjectCreationExpr) expression;
                     final String constructor = x.getType().toString();
-                    return this.fqcnResolver.resolveFQCN(constructor, source);
+                    return this.fqcnSolver.solveFQCN(constructor, source);
                 })
                 .when(eq(DoubleLiteralExpr.class)).get(() -> Optional.of("java.lang.Double"))
                 .when(eq(StringLiteralExpr.class)).get(() -> Optional.of("java.lang.String"))
@@ -250,7 +250,7 @@ class TypeAnalyzer {
                 })
                 .when(eq(CastExpr.class)).get(() -> {
                     final CastExpr x = (CastExpr) expression;
-                    return this.fqcnResolver.resolveFQCN(x.getType().toString(), source);
+                    return this.fqcnSolver.solveFQCN(x.getType().toString(), source);
                 })
                 .when(eq(ArrayAccessExpr.class)).get(() -> {
                     final ArrayAccessExpr x = (ArrayAccessExpr) expression;
@@ -258,11 +258,11 @@ class TypeAnalyzer {
                 })
                 .when(eq(ArrayCreationExpr.class)).get(() -> {
                     ArrayCreationExpr x = (ArrayCreationExpr) expression;
-                    return this.fqcnResolver.resolveFQCN(x.getType().toString(), source);
+                    return this.fqcnSolver.solveFQCN(x.getType().toString(), source);
                 })
                 .when(eq(TypeExpr.class)).get(() -> {
                     TypeExpr x = (TypeExpr) expression;
-                    return this.fqcnResolver.resolveFQCN(x.getType().toString(), source);
+                    return this.fqcnSolver.solveFQCN(x.getType().toString(), source);
                 })
                 .when(eq(NullLiteralExpr.class)).get(Optional::empty)
                 .when(eq(MethodReferenceExpr.class)).get(() -> {
@@ -473,7 +473,7 @@ class TypeAnalyzer {
                     // TODO set Parent
                     String paramFqcn = ClassNameUtils.removeCapture(fqcn);
                     if (!paramFqcn.contains(".")) {
-                        paramFqcn = fqcnResolver.resolveFQCN(paramFqcn, source).orElse(paramFqcn);
+                        paramFqcn = fqcnSolver.solveFQCN(paramFqcn, source).orElse(paramFqcn);
                     }
                     log.trace("Parameter paramFqcn:{} fqcn:{}", paramFqcn, fqcn);
                     final Variable variable = new Variable("", declaratorId.getName(), p.getRange(), paramFqcn);
@@ -559,7 +559,7 @@ class TypeAnalyzer {
 
         if (isField) {
             if (isLocal) {
-                final Optional<String> result = fqcnResolver.resolveThisScope(name, source);
+                final Optional<String> result = fqcnSolver.solveThisScope(name, source);
                 if (result.isPresent()) {
                     log.debug("resolved: {} -> FQCN:{}", name, result);
                     return log.traceExit(result);
@@ -568,7 +568,7 @@ class TypeAnalyzer {
             final Optional<String> result = source.getCurrentType().flatMap(typeScope -> {
 
                 if (typeScope.getFQCN().equals(declaringClass)) {
-                    final Optional<String> resolved = fqcnResolver.resolveFQCN(name, source);
+                    final Optional<String> resolved = fqcnSolver.solveFQCN(name, source);
                     log.debug("resolved: {} -> FQCN:{}", name, resolved);
                     return resolved;
                 }
@@ -670,7 +670,7 @@ class TypeAnalyzer {
                     MethodDescriptor method = (MethodDescriptor) md;
                     log.trace("found:{} declaringClass:{}", method.rawDeclaration(), declaringClass2);
                     final String type = md.getRawReturnType();
-                    return fqcnResolver.resolveFQCN(type, source).orElse(type);
+                    return fqcnSolver.solveFQCN(type, source).orElse(type);
                 })
                 .findFirst()
                 .orElseGet(() -> {
@@ -682,7 +682,7 @@ class TypeAnalyzer {
                                 .filter(md -> this.returnTypeFilter(name, isField, onlyPublic, md))
                                 .map(md -> {
                                     final String type = md.getRawReturnType();
-                                    final String s = fqcnResolver.resolveFQCN(type, source).orElse(type);
+                                    final String s = fqcnSolver.solveFQCN(type, source).orElse(type);
                                     log.trace("found:{}", s);
                                     return s;
                                 })

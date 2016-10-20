@@ -2,6 +2,7 @@ package meghanada.parser;
 
 import com.google.common.collect.BiMap;
 import meghanada.parser.source.*;
+import meghanada.reflect.ClassIndex;
 import meghanada.reflect.MemberDescriptor;
 import meghanada.reflect.asm.CachedASMReflector;
 import meghanada.utils.ClassName;
@@ -17,30 +18,30 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 
-class FQCNResolver {
+class FQCNSolver {
 
     private static final Pattern VALID_FQCN = Pattern
             .compile("(\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*\\.)+\\p{javaJavaIdentifierStart}\\p{javaJavaIdentifierPart}*");
 
-    private static final Logger log = LogManager.getLogger(FQCNResolver.class);
+    private static final Logger log = LogManager.getLogger(FQCNSolver.class);
 
-    private static FQCNResolver fqcnResolver;
+    private static FQCNSolver fqcnSolver;
     private final Map<String, String> globalClassSymbol;
     private final List<BiFunction<String, JavaSource, Optional<String>>> searchFunctions;
 
-    private FQCNResolver(Map<String, String> globalClassSymbol) {
+    private FQCNSolver(Map<String, String> globalClassSymbol) {
         this.globalClassSymbol = globalClassSymbol;
         this.searchFunctions = this.getSearchFunctions();
 
     }
 
-    public static FQCNResolver getInstance() {
-        if (fqcnResolver == null) {
+    public static FQCNSolver getInstance() {
+        if (fqcnSolver == null) {
             final Map<String, String> packageClasses = CachedASMReflector.getInstance().getPackageClasses("java.lang");
-            fqcnResolver = new FQCNResolver(packageClasses);
+            fqcnSolver = new FQCNSolver(packageClasses);
         }
 
-        return fqcnResolver;
+        return fqcnSolver;
     }
 
     private Optional<String> tryClassToFQCN(final String ownPkg, final String name, final BiMap<String, String> classes) {
@@ -50,27 +51,30 @@ class FQCNResolver {
         return log.traceExit(entryMessage, result);
     }
 
-    Optional<String> resolveThisScope(final String name, final JavaSource source) {
+    Optional<String> solveThisScope(final String name, final JavaSource source) {
         final String searchName = ClassNameUtils.removeCapture(name);
 
         // Check FQCN
-        log.traceEntry("searchName={} name=name{}", searchName, name);
+        final EntryMessage entryMessage = log.traceEntry("searchName={} name=name{}", searchName, name);
 
         {
             final Optional<String> typeParam = this.isTypeParameter(name, source);
             if (typeParam.isPresent()) {
-                return log.traceExit(typeParam);
+                return log.traceExit(entryMessage, typeParam);
             }
             if (name.startsWith(ClassNameUtils.CAPTURE_OF)) {
-                return log.traceExit(Optional.of(name));
+                return log.traceExit(entryMessage, Optional.of(name));
             }
         }
-        final Optional<String> result = source.getCurrentType().map(typeScope -> typeScope.getFieldSymbol(searchName)).map(Variable::getFQCN);
-        return log.traceExit(result);
+        // field
+        final Optional<String> result = source.getCurrentType()
+                .map(typeScope -> typeScope.getFieldSymbol(searchName))
+                .map(Variable::getFQCN);
+        return log.traceExit(entryMessage, result);
 
     }
 
-    Optional<String> resolveSymbolFQCN(final String name, final JavaSource source, final int line) {
+    Optional<String> solveSymbolFQCN(final String name, final JavaSource source, final int line) {
         final Optional<BlockScope> currentBlock = source.getCurrentBlock();
 
         return currentBlock.map(bs -> {
@@ -101,11 +105,11 @@ class FQCNResolver {
                     return fieldSymbol.getFQCN();
                 }
                 return null;
-            }).orElseGet(() -> resolveFQCN(name, source).orElse(null));
+            }).orElseGet(() -> solveFQCN(name, source).orElse(null));
         });
     }
 
-    Optional<String> resolveFQCN(final String name, final JavaSource source) {
+    Optional<String> solveFQCN(final String name, final JavaSource source) {
 
         final String searchName = ClassNameUtils.removeCapture(name);
 
@@ -132,9 +136,9 @@ class FQCNResolver {
 
         if (!result.isPresent()) {
             // final StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-            log.debug("can not resolve name:{} file:{}", name, source.getFile());
+            log.debug("can not solve name:{} file:{}", name, source.getFile());
         } else {
-            log.debug("resolved: {} -> FQCN:{}", searchName, result.get());
+            log.debug("solved: {} -> FQCN:{}", searchName, result.get());
         }
         return log.traceExit(result);
     }
@@ -142,10 +146,10 @@ class FQCNResolver {
     private List<BiFunction<String, JavaSource, Optional<String>>> getSearchFunctions() {
         List<BiFunction<String, JavaSource, Optional<String>>> searchFunctions = new ArrayList<>(6);
 
-        searchFunctions.add(this::resolveThis);
-        searchFunctions.add(this::resolveSuper);
-        searchFunctions.add(this::resolveClassName);
-        searchFunctions.add(this::resolveSymbolName);
+        searchFunctions.add(this::solveThis);
+        searchFunctions.add(this::solveSuper);
+        searchFunctions.add(this::solveClassName);
+        searchFunctions.add(this::solveSymbolName);
         searchFunctions.add(this::tryClassToFQCN);
 
         return searchFunctions;
@@ -156,8 +160,9 @@ class FQCNResolver {
     }
 
 
-    private Optional<String> resolveSuper(final String name, final JavaSource source) {
-        log.traceEntry("name={}", name);
+    private Optional<String> solveSuper(final String name, final JavaSource source) {
+        final EntryMessage entryMessage = log.traceEntry("name={}", name);
+
         final Optional<TypeScope> currentType = source.getCurrentType();
         if (name.equals("super")
             && (currentType.isPresent() && currentType.get() instanceof ClassScope)) {
@@ -166,36 +171,30 @@ class FQCNResolver {
             final List<String> supers = classScope.getExtendsClasses();
             if (supers.size() > 0) {
                 final String s = supers.get(0);
-                return Optional.ofNullable(s);
+                return log.traceExit(entryMessage, Optional.of(s));
             }
         }
-        final Optional<String> empty = Optional.empty();
-        return log.traceExit(empty);
+        return log.traceExit(entryMessage, Optional.empty());
     }
 
-    private Optional<String> resolveThis(final String name, final JavaSource source) {
-        log.traceEntry("name={}", name);
+    private Optional<String> solveThis(final String name, final JavaSource source) {
+        final EntryMessage entryMessage = log.traceEntry("name={}", name);
         if (name.equals("this")) {
-            final Optional<String> result = source.getCurrentType().map(TypeScope::getFQCN);
-            if (result.isPresent()) {
-                return log.traceExit(result);
-            }
-            final String fqcn = result.orElseGet(() -> {
-                List<TypeScope> typeScopes = source.getTypeScopes();
-                if (typeScopes != null && typeScopes.size() > 0) {
-                    // return first FQCN
-                    return typeScopes.get(0).getFQCN();
-                }
-                return null;
-            });
-            final Optional<String> result1 = Optional.ofNullable(fqcn);
-            return log.traceExit(result1);
+            final String result = source.getCurrentType()
+                    .map(TypeScope::getFQCN)
+                    .orElseGet(() -> {
+                        final List<TypeScope> ts = source.getTypeScopes();
+                        if (ts != null && ts.size() > 0) {
+                            return ts.get(0).getFQCN();
+                        }
+                        return null;
+                    });
+            return log.traceExit(entryMessage, Optional.ofNullable(result));
         }
-        final Optional<String> result = Optional.empty();
-        return log.traceExit(result);
+        return log.traceExit(entryMessage, Optional.empty());
     }
 
-    private Optional<String> resolveClassName(final String name, final JavaSource source) {
+    private Optional<String> solveClassName(final String name, final JavaSource source) {
 
         final CachedASMReflector reflector = CachedASMReflector.getInstance();
         final ClassName className = new ClassName(name);
@@ -204,31 +203,42 @@ class FQCNResolver {
 
         String fqcn;
 
+        // already fqcn ? try access index
+        if (searchName.contains(".")) {
+            final Optional<ClassIndex> classIndex = reflector.containsClassIndex(searchName);
+            if (classIndex.isPresent()) {
+                final Optional<String> result = Optional.of(classIndex.get().getDeclaration());
+                log.trace("solved fqcn name={} result={}", searchName, result);
+                return log.traceExit(entryMessage, result);
+            }
+        }
+
         // 1. check primitive
         if (ClassNameUtils.isPrimitive(searchName)) {
             final Optional<String> result = Optional.ofNullable(className.addTypeParameters(searchName));
 
-            log.trace("resolved primitive name={} result={}", searchName, result);
+            log.trace("solved primitive name={} result={}", searchName, result);
             return log.traceExit(entryMessage, result);
         }
 
-        // 2. resolve from imports
+        // 2. solve from imports
         fqcn = source.importClass.get(searchName);
         if (fqcn != null) {
+            // TODO solve typeParameter
             final Optional<String> result = Optional.ofNullable(className.addTypeParameters(fqcn));
-            log.trace("resolved import class name={} result={}", searchName, result);
+            log.trace("solved import class name={} result={}", searchName, result);
             return log.traceExit(entryMessage, result);
         }
 
-        // 3. resolve from globals (java.lang.*)
+        // 3. solve from globals (java.lang.*)
         fqcn = this.globalClassSymbol.get(searchName);
         if (fqcn != null) {
             final Optional<String> result = Optional.ofNullable(className.addTypeParameters(fqcn));
-            log.trace("resolved default package name={} result={}", searchName, result);
+            log.trace("solved default package name={} result={}", searchName, result);
             return log.traceExit(entryMessage, result);
         }
 
-        // 4. resolve from package scope
+        // 4. solve from package scope
         final Optional<String> packageResult = source.getCurrentType().map(typeScope -> {
             String s = searchName;
             final String typeScopePackage = typeScope.getPackage();
@@ -244,12 +254,12 @@ class FQCNResolver {
         });
 
         if (packageResult.isPresent()) {
-            log.trace("resolved package or global scope class name={} result={}", searchName, packageResult);
+            log.trace("solved package or global scope class name={} result={}", searchName, packageResult);
             return log.traceExit(entryMessage, packageResult);
         }
 
 
-        // 5. resolve current source
+        // 5. solve current source
         fqcn = source.getCurrentType().map(ts -> {
             // current?
             String type = ts.getType();
@@ -258,7 +268,7 @@ class FQCNResolver {
             }
             return null;
         }).orElseGet(() -> {
-            // resolve from parsed source
+            // solve from parsed source
             for (TypeScope ts : source.getTypeScopes()) {
                 String type = ts.getType();
                 if (type.equals(searchName)) {
@@ -271,7 +281,7 @@ class FQCNResolver {
         if (fqcn != null && ClassNameUtils.getSimpleName(fqcn)
                 .equals(ClassNameUtils.getSimpleName(searchName))) {
             final Optional<String> result = Optional.ofNullable(className.addTypeParameters(fqcn));
-            log.trace("resolved current class name={} result={}", searchName, result);
+            log.trace("solved current class name={} result={}", searchName, result);
             return log.traceExit(entryMessage, result);
         }
 
@@ -307,14 +317,14 @@ class FQCNResolver {
 
         final CachedASMReflector reflector = CachedASMReflector.getInstance();
         if (ts.getType().equals(searchName) && reflector.containsFQCN(parentClass)) {
-            final String resolved = className.addTypeParameters(parentClass);
-            return log.traceExit(entryMessage, resolved);
+            final String solved = className.addTypeParameters(parentClass);
+            return log.traceExit(entryMessage, solved);
         }
 
         final String innerName = parentClass + '$' + searchName;
         if (reflector.containsFQCN(innerName) && innerName.endsWith(searchName)) {
-            final String resolved = className.addTypeParameters(innerName);
-            return log.traceExit(entryMessage, resolved);
+            final String solved = className.addTypeParameters(innerName);
+            return log.traceExit(entryMessage, solved);
         }
 
         if (reflector.getGlobalClassIndex().containsKey(parentClass)) {
@@ -332,8 +342,8 @@ class FQCNResolver {
                     .filter(s -> s != null)
                     .findFirst();
             if (result.isPresent()) {
-                final String resolved = result.get();
-                return log.traceExit(entryMessage, resolved);
+                final String solved = result.get();
+                return log.traceExit(entryMessage, solved);
             }
         }
         log.traceExit(entryMessage);
@@ -355,7 +365,7 @@ class FQCNResolver {
         });
     }
 
-    private Optional<String> resolveSymbolName(final String name, final JavaSource source) {
+    private Optional<String> solveSymbolName(final String name, final JavaSource source) {
         final ClassName className = new ClassName(name);
         final String symbolName = className.getName();
         final EntryMessage entryMessage = log.traceEntry("name={} symbolName={}", name, symbolName);
@@ -370,8 +380,8 @@ class FQCNResolver {
 
         // search from field
         final String resultFQCN = source.getCurrentType()
-                .map(ts -> this.resolveFromField(name, source, symbolName, ts))
-                .orElseGet(() -> this.resolveFromSource(name, source));
+                .map(ts -> this.solveFromField(name, source, symbolName, ts))
+                .orElseGet(() -> this.solveFromSource(name, source));
 
         if (resultFQCN != null) {
             final Optional<String> result = Optional.ofNullable(className.addTypeParameters(resultFQCN));
@@ -381,7 +391,7 @@ class FQCNResolver {
         return log.traceExit(entryMessage, result);
     }
 
-    private String resolveFromSource(final String name, final JavaSource source) {
+    private String solveFromSource(final String name, final JavaSource source) {
         final EntryMessage em = log.traceEntry("name={}", name);
         final String res = source.getTypeScopes()
                 .stream()
@@ -401,7 +411,7 @@ class FQCNResolver {
         return res;
     }
 
-    private String resolveFromField(final String name, final JavaSource source, final String symbolName, final TypeScope ts) {
+    private String solveFromField(final String name, final JavaSource source, final String symbolName, final TypeScope ts) {
         final EntryMessage em = log.traceEntry("name={} symbolName={}", name, symbolName);
 
         final CachedASMReflector reflector = CachedASMReflector.getInstance();
@@ -411,9 +421,9 @@ class FQCNResolver {
             if (blockScope != null) {
                 while (blockScope != null) {
                     log.trace("block={}", blockScope);
-                    final Variable resolveNS = blockScope.getDeclaratorMap().get(name);
-                    if (resolveNS != null) {
-                        final String fqcn = resolveNS.getFQCN();
+                    final Variable solveNS = blockScope.getDeclaratorMap().get(name);
+                    if (solveNS != null) {
+                        final String fqcn = solveNS.getFQCN();
                         return log.traceExit(em, fqcn);
                     }
                     // from field
