@@ -683,9 +683,11 @@ public class JavaParserTest extends GradleTestBase {
                 .filter(JavaSource::isJavaFile)
                 .forEach(file -> {
                     try {
-                        System.out.println(file.getCanonicalPath());
                         System.out.println(Strings.repeat("-", 120));
+                        System.out.println(file.getCanonicalPath());
+                        final Stopwatch stopwatch1 = Stopwatch.createStarted();
                         parser.parse(file);
+                        System.out.println(stopwatch1);
                         System.out.println(Strings.repeat("-", 120));
                     } catch (IOException | ParseException e) {
                         e.printStackTrace();
@@ -966,7 +968,7 @@ public class JavaParserTest extends GradleTestBase {
         List<MemberDescriptor> result2 = typeScope2.getMemberDescriptors();
         String type2 = typeScope2.getType();
         assertEquals("Gen2", type2);
-        assertEquals(4, result2.size());
+        assertEquals(5, result2.size());
 
     }
 

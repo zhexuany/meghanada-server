@@ -4,9 +4,10 @@ import java.util.Map;
 
 public class Gen2<V> {
 
+    public Map.Entry me1;
+    public Map.Entry<String, V> me2;
     public String name;
     public V value;
-    public Map.Entry me;
 
     public Gen2(String name, V value) {
         this.name = name;

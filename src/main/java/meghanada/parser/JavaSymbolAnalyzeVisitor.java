@@ -63,6 +63,14 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final String name = ClassNameUtils.getSimpleName(type.getName());
         log.trace("import name={} fqcn={}", name, fqcn);
         source.importClass.put(name, fqcn);
+        CachedASMReflector.getInstance()
+                .searchInnerClasses(fqcn)
+                .forEach(classIndex -> {
+                    final String name1 = ClassNameUtils.replaceInnerMark(classIndex.getName());
+                    final String fqcn1 = classIndex.getDeclaration();
+                    log.trace("import name={} fqcn={}", name1, fqcn1);
+                    source.importClass.put(name1, fqcn1);
+                });
         source.addUnusedClass(name, fqcn);
         super.visit(node, source);
     }
@@ -85,6 +93,14 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         Map<String, String> symbols = reflector.getPackageClasses(pkg);
         for (final Map.Entry<String, String> entry : symbols.entrySet()) {
             source.importClass.put(entry.getKey(), entry.getValue());
+            reflector.searchInnerClasses(entry.getValue())
+                    .forEach(classIndex -> {
+                        final String name1 = ClassNameUtils.replaceInnerMark(classIndex.getName());
+                        final String fqcn1 = classIndex.getDeclaration();
+                        log.trace("import name={} fqcn={}", name1, fqcn1);
+                        source.importClass.put(name1, fqcn1);
+                    });
+
             source.addUnusedClass(entry.getKey(), entry.getValue());
         }
         super.visit(node, source);
