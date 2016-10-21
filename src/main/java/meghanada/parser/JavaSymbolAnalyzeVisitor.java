@@ -451,12 +451,12 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         source.getCurrentBlock().ifPresent(bs -> {
             this.fieldAccess(node, source, bs);
         });
-        super.visit(node, source);
+        // super.visit(node, source);
         log.traceExit(entryMessage);
     }
 
     Optional<FieldAccessSymbol> fieldAccess(final FieldAccessExpr node, final JavaSource source, final BlockScope blockScope) {
-
+        final EntryMessage entryMessage = log.traceEntry("field={} range={}", node.getFieldExpr(), node.getRange());
         final NameExpr nameExpr = node.getFieldExpr();
         final String fieldName = node.getField();
         final Expression scope = node.getScope();
@@ -473,11 +473,10 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             optional = Optional.of(expr);
         }
 
-        return optional.flatMap(scopeExpr -> {
+        final Optional<FieldAccessSymbol> result = optional.flatMap(scopeExpr -> {
             final String scopeString = scopeExpr.toString();
             return this.typeAnalyzer.analyzeExprClass(scopeExpr, blockScope, source)
                     .flatMap(exprClass -> {
-
                         final String declaringClass = this.toFQCN(exprClass, source);
                         return this.createFieldAccessSymbol(fieldName,
                                 scopeString,
@@ -487,6 +486,8 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                                 .map(blockScope::addFieldAccess);
                     });
         });
+
+        return log.traceExit(entryMessage, result);
     }
 
     @Override
@@ -723,6 +724,8 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     @Override
     public void visit(final NameExpr node, final JavaSource source) {
+
+        final EntryMessage entryMessage = log.traceEntry("name={} range={}", node.getName(), node.getRange());
         source.getCurrentType().ifPresent(ts -> source.getCurrentBlock(ts).ifPresent(bs -> {
             final String name = node.getName();
             final Variable fieldSymbol = ts.getFieldSymbol(name);
@@ -747,6 +750,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             }
         }));
         super.visit(node, source);
+        log.traceExit(entryMessage);
     }
 
     @Override

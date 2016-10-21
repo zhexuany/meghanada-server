@@ -226,7 +226,16 @@ class TypeAnalyzer {
                     MethodCallExpr x = (MethodCallExpr) expression;
                     return this.visitor.methodCall(x, source, bs).map(AccessSymbol::getReturnType);
                 })
-                .when(eq(ThisExpr.class)).get(() -> source.getCurrentType().map(TypeScope::getFQCN))
+                .when(eq(ThisExpr.class)).get(() -> {
+                    return source.getCurrentType().map(ts -> {
+                        final String fqcn = ts.getFQCN();
+                        source.getCurrentBlock().ifPresent(blockScope -> {
+                            final Variable v = new Variable(fqcn, "this", expression.getRange(), fqcn);
+                            blockScope.addNameSymbol(v);
+                        });
+                        return fqcn;
+                    });
+                })
                 .when(eq(SuperExpr.class)).get(() -> source.getCurrentType().flatMap(typeScope -> {
                     if (typeScope instanceof ClassScope) {
                         ClassScope classScope = (ClassScope) typeScope;
@@ -667,7 +676,7 @@ class TypeAnalyzer {
                         return md.getRawReturnType();
                     }
                     MethodDescriptor method = (MethodDescriptor) md;
-                    log.trace("found:{} declaringClass:{}", method.rawDeclaration(), declaringClass2);
+                    log.trace("found={} declaringClass={}", method.rawDeclaration(), declaringClass2);
                     final String type = md.getRawReturnType();
                     return fqcnSolver.solveFQCN(type, source).orElse(type);
                 })
@@ -682,7 +691,7 @@ class TypeAnalyzer {
                                 .map(md -> {
                                     final String type = md.getRawReturnType();
                                     final String s = fqcnSolver.solveFQCN(type, source).orElse(type);
-                                    log.trace("found:{}", s);
+                                    log.trace("found={}", s);
                                     return s;
                                 })
                                 .findFirst();

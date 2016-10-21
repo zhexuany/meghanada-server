@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static meghanada.config.Config.timeIt;
-import static meghanada.config.Config.traceIt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -952,7 +951,7 @@ public class JavaParserTest extends GradleTestBase {
 
     @Test
     public void testParseSimple3() throws Exception {
-        JavaSource source = traceIt(() -> {
+        JavaSource source = timeIt(() -> {
             JavaParser parser = new JavaParser();
             return parser.parse(new File("src/test/java/meghanada/Gen2.java"));
         });

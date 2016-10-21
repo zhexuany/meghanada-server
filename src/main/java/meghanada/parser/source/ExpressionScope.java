@@ -54,7 +54,6 @@ public class ExpressionScope extends Scope {
         final Position fasEnd = fas.getRange().end;
 
         if (fasEnd.column + 1 == endCol && fasEnd.line == endLine) {
-            log.trace("expressionName:{} endCol:{} endLine:{} fasPos:{}", this.name, endCol, endLine, fasEnd);
             this.expressionReturn = fas;
         }
         return super.addFieldAccess(fas);

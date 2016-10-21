@@ -13,9 +13,9 @@ abstract class Scope {
     protected final String name;
     protected final Range range;
 
-    protected Set<Variable> nameSymbols = new HashSet<>(32);
-    protected List<MethodCallSymbol> methodCalls = new ArrayList<>(32);
-    protected List<FieldAccessSymbol> fieldAccesses = new ArrayList<>(32);
+    protected Set<Variable> nameSymbols = new HashSet<>(4);
+    protected List<MethodCallSymbol> methodCalls = new ArrayList<>(2);
+    protected List<FieldAccessSymbol> fieldAccesses = new ArrayList<>(2);
 
     Scope(final String name, final Range range) {
         this.name = name;
