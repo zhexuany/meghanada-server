@@ -6,20 +6,24 @@ import com.google.common.base.MoreObjects;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.Map;
+
 @DefaultSerializer(MethodScopeSerializer.class)
 public class MethodScope extends BlockScope {
 
     private static Logger log = LogManager.getLogger(MethodScope.class);
     final Range nameRange;
+    Map<String, String> typeParameterMap;
 
     public MethodScope(final String name, final Range range, final Range nameRange) {
         super(name, range);
         this.nameRange = nameRange;
     }
 
-    public MethodScope startBlock(final String name, final Range range, final Range nameRange) {
+    public MethodScope startBlock(final String name, final Range range, final Range nameRange, final Map<String, String> typeParameterMap) {
         // add method
         MethodScope scope = new MethodScope(name, range, nameRange);
+        scope.typeParameterMap = typeParameterMap;
         super.startBlock(scope);
         return scope;
     }
@@ -34,5 +38,9 @@ public class MethodScope extends BlockScope {
 
     public Range getNameRange() {
         return nameRange;
+    }
+
+    public Map<String, String> getTypeParameterMap() {
+        return typeParameterMap;
     }
 }

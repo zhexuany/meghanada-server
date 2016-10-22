@@ -59,16 +59,18 @@ public class TypeScope extends MethodScope {
         return super.currentScope.remove();
     }
 
-    public void startMethod(String name) {
+    public MethodScope startMethod(final String name, final Range range, final Range nameRange, Map<String, String> typeParameterMap) {
         this.currentMethod.push(name);
+        return this.startBlock(name, range, nameRange, typeParameterMap);
     }
 
     public String currentMethod() {
         return this.currentMethod.peek();
     }
 
-    public String endMethod() {
-        return this.currentMethod.remove();
+    public BlockScope endMethod() {
+        this.currentMethod.remove();
+        return this.endBlock();
     }
 
     public Variable getFieldSymbol(String name) {

@@ -8,6 +8,7 @@ import com.github.javaparser.Position;
 import com.github.javaparser.Range;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class MethodScopeSerializer extends Serializer<MethodScope> {
@@ -79,6 +80,8 @@ public class MethodScopeSerializer extends Serializer<MethodScope> {
         // 10. lambdaBlock
         output.writeBoolean(scope.isLambdaBlock);
 
+        // 11. typeParameters
+        kryo.writeClassAndObject(output, scope.getTypeParameterMap());
     }
 
     @Override
@@ -145,6 +148,10 @@ public class MethodScopeSerializer extends Serializer<MethodScope> {
 
         // 10. lambdaBlock
         scope.isLambdaBlock = input.readBoolean();
+
+        // 11. typeParameters
+        final Map<String, String> map = (Map<String, String>) kryo.readClassAndObject(input);
+        scope.typeParameterMap = map;
 
         return scope;
     }

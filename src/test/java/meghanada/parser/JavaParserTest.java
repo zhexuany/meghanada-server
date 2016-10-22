@@ -972,4 +972,19 @@ public class JavaParserTest extends GradleTestBase {
 
     }
 
+    @Test
+    public void testParseSimple4() throws Exception {
+        JavaSource source = timeIt(() -> {
+            JavaParser parser = new JavaParser();
+            return parser.parse(new File("src/test/java/meghanada/Gen3.java"));
+        });
+
+        TypeScope typeScope1 = source.getTypeScopes().get(0);
+        List<MemberDescriptor> result1 = typeScope1.getMemberDescriptors();
+        String type1 = typeScope1.getType();
+        assertEquals("Gen3", type1);
+        assertEquals(4, result1.size());
+
+    }
+
 }

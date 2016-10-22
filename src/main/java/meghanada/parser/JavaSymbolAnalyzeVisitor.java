@@ -286,14 +286,12 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                 exceptions.add(fqcn);
             });
 
-            typeScope.startMethod(constructorName);
             // start method
-            typeScope.startBlock(constructorName, node.getRange(), nameExpr.getRange());
+            typeScope.startMethod(constructorName, node.getRange(), nameExpr.getRange(), new HashMap<>(0));
 
             super.visit(node.getBody(), source);
 
             typeScope.endMethod();
-            typeScope.endBlock();
             final String modifier = toModifierString(node.getModifiers());
             final String fqcn = typeScope.getFQCN();
 
@@ -373,18 +371,29 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
             // mark returnType
             this.markUsedClass(node.getType().toString(), source);
-            node.getParameters().forEach(parameter -> {
-                this.markUsedClass(parameter.getType().toString(), source);
-            });
             node.getThrows().forEach(ex -> this.markUsedClass(ex.toString(), source));
-            log.trace("start Method:{}, Range:{}", methodName, node.getRange());
-            typeScope.startMethod(methodName);
-            typeScope.startBlock(methodName, node.getRange(), nameExpr.getRange());
 
+            log.trace("start Method:{}, Range:{}", methodName, node.getRange());
+            Map<String, String> typeParameterMap = new HashMap<>();
+            node.getTypeParameters().forEach(tp -> {
+                final String name = tp.getName();
+                final NodeList<ClassOrInterfaceType> typeBounds = tp.getTypeBound();
+                if (typeBounds != null && typeBounds.size() > 0) {
+                    typeBounds.forEach(clazz -> {
+                        final String tb = clazz.getName();
+                        final String fqcn = this.toFQCN(tb, source);
+                        typeParameterMap.put(name, fqcn);
+                        log.trace("put typeParameterMap name={} typeBound={} fqcn={}", name, tb, fqcn);
+                    });
+                } else {
+                    typeParameterMap.put(name, ClassNameUtils.OBJECT_CLASS);
+                    log.trace("put typeParameterMap name={} typeBound=Object fqcn={}", name, ClassNameUtils.OBJECT_CLASS);
+                }
+            });
+
+            typeScope.startMethod(methodName, node.getRange(), nameExpr.getRange(), typeParameterMap);
             super.visit(node, source);
             typeScope.endMethod();
-
-            typeScope.endBlock();
             this.processAfterMethod(node, source, typeScope);
             log.trace("end Method:{} Range:{}", methodName, node.getRange());
 
@@ -644,22 +653,30 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     @Override
     public void visit(final Parameter node, final JavaSource source) {
         final EntryMessage entryMessage = log.traceEntry("Parameter node='{}' range={}", node, node.getRange());
-
-        final String tempType = node.isVarArgs() ? node.getType().toString() + ClassNameUtils.VA_ARGS : node.getType().toString();
+        final String type = node.isVarArgs() ? node.getType().toString() + ClassNameUtils.VA_ARGS : node.getType().toString();
         final VariableDeclaratorId declaratorId = node.getId();
-        final String type = tempType;
 
-        source.getCurrentType().ifPresent(ts -> source.getCurrentBlock(ts)
-                .ifPresent(bs -> fqcnSolver.solveFQCN(type, source).ifPresent(fqcn -> {
-                    final String name = declaratorId.getName();
-                    final Variable ns = new Variable(
-                            ts.getFQCN(),
-                            name,
-                            declaratorId.getRange(),
-                            fqcn,
-                            true);
-                    bs.addNameSymbol(ns);
-                })));
+        source.getCurrentType().ifPresent(ts -> source.getCurrentBlock(ts).ifPresent(bs -> {
+            String fqcn = null;
+            if (bs instanceof MethodScope) {
+                final MethodScope methodScope = (MethodScope) bs;
+                final Map<String, String> typeParameterMap = methodScope.getTypeParameterMap();
+                if (typeParameterMap.containsKey(type)) {
+                    fqcn = typeParameterMap.get(type);
+                }
+            }
+            if (fqcn == null) {
+                fqcn = fqcnSolver.solveFQCN(type, source).orElse(type);
+            }
+            final String name = declaratorId.getName();
+            final Variable ns = new Variable(
+                    ts.getFQCN(),
+                    name,
+                    declaratorId.getRange(),
+                    fqcn,
+                    true);
+            bs.addNameSymbol(ns);
+        }));
 
         super.visit(node, source);
         log.traceExit(entryMessage);

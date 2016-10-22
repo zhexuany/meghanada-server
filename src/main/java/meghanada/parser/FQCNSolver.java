@@ -384,10 +384,12 @@ class FQCNSolver {
             if (typeScope instanceof ClassScope) {
                 final ClassScope cs = (ClassScope) typeScope;
                 final Map<String, String> typeParameterMap = cs.getTypeParameterMap();
-                if (typeParameterMap != null && typeParameterMap.containsKey(name)) {
-                    final String fqcn = typeParameterMap.get(name);
-                    log.trace("match typeParameter name={} fqcn={}", name, fqcn);
-                    return fqcn;
+                ClassName className = new ClassName(name);
+                final String nm = className.getName();
+                if (typeParameterMap != null && typeParameterMap.containsKey(nm)) {
+                    final String fqcn = typeParameterMap.get(nm);
+                    log.trace("match typeParameter name={} fqcn={}", nm, className.replaceClassName(fqcn));
+                    return className.replaceClassName(fqcn);
                 }
             }
             return null;
