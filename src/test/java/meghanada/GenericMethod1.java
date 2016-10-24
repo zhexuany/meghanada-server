@@ -1,15 +1,16 @@
 package meghanada;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Gen3<T> {
+public class GenericMethod1<T> {
 
-    public T toString(T str) {
+    public T toString(T str) throws NullPointerException {
         return str;
     }
 
-    public T[] toString(T[] str) {
+    public T[] toString(T[] str) throws IOException {
         return str;
     }
 

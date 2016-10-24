@@ -6,6 +6,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.github.javaparser.Position;
 import com.github.javaparser.Range;
+import meghanada.reflect.MethodParameter;
 
 import java.util.List;
 import java.util.Map;
@@ -82,6 +83,14 @@ public class MethodScopeSerializer extends Serializer<MethodScope> {
 
         // 11. typeParameters
         kryo.writeClassAndObject(output, scope.getTypeParameterMap());
+
+        // 12. parameters
+        final List<MethodParameter> parameters = scope.getParameters();
+        output.writeInt(parameters.size(), true);
+        for (final MethodParameter mp : parameters) {
+            kryo.writeClassAndObject(output, mp);
+        }
+
     }
 
     @Override
@@ -153,6 +162,11 @@ public class MethodScopeSerializer extends Serializer<MethodScope> {
         final Map<String, String> map = (Map<String, String>) kryo.readClassAndObject(input);
         scope.typeParameterMap = map;
 
+        final int mpSize = input.readInt(true);
+        for (int i = 0; i < mpSize; i++) {
+            final MethodParameter mp = (MethodParameter) kryo.readClassAndObject(input);
+            scope.getParameters().add(mp);
+        }
         return scope;
     }
 }

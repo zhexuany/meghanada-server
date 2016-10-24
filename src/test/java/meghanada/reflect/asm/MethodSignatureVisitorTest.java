@@ -33,8 +33,8 @@ public class MethodSignatureVisitorTest extends GradleTestBase {
 
     @Test
     public void testMethod1() throws Exception {
-        final File f = new File(getTestOutputDir(), "meghanada/Gen3.class");
-        final String fqcn = "meghanada.Gen3";
+        final File f = new File(getTestOutputDir(), "meghanada/GenericMethod1.class");
+        final String fqcn = "meghanada.GenericMethod1";
         TestVisitor visitor = traceIt(() -> doAnalyze(f, fqcn));
 
     }

@@ -27,7 +27,7 @@ public class MethodDescriptor extends MemberDescriptor implements Serializable {
 
     }
 
-    public MethodDescriptor(final String declaringClass, final String name, final String modifier, final List<MethodParameter> parameters, final String[] exceptions, final String returnType, final boolean hashDefault) {
+    public MethodDescriptor(final String declaringClass, final String name, final MemberType memberType, final String modifier, final List<MethodParameter> parameters, final String[] exceptions, final String returnType, final boolean hashDefault) {
         this.declaringClass = declaringClass;
         this.name = name;
         if (modifier == null) {
@@ -35,7 +35,7 @@ public class MethodDescriptor extends MemberDescriptor implements Serializable {
         } else {
             this.modifier = modifier;
         }
-        this.memberType = MemberType.METHOD;
+        this.memberType = memberType;
         this.parameters = parameters;
         this.exceptions = exceptions;
         this.returnType = returnType;

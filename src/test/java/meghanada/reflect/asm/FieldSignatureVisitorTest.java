@@ -54,8 +54,8 @@ public class FieldSignatureVisitorTest extends GradleTestBase {
 
     @Test
     public void testReturnClass3() throws Exception {
-        File f = new File(getTestOutputDir(), "meghanada/Gen1.class");
-        String fqcn = "meghanada.Gen1";
+        File f = new File(getTestOutputDir(), "meghanada/GenericField1.class");
+        String fqcn = "meghanada.GenericField1";
         TestVisitor visitor = doAnalyze(f, fqcn);
 
         System.out.println(visitor.visitor.getTypeParameters());

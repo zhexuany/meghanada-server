@@ -2,17 +2,17 @@ package meghanada;
 
 import java.util.Map;
 
-public class Gen2<V> {
+public class GenericInnerClass1<V> {
 
     public Map.Entry me1;
     public Map.Entry<String, V> me2;
     public String name;
     public V value;
 
-    public Gen2(String name, V value) {
+    public GenericInnerClass1(String name, V value) {
         this.name = name;
         this.value = value;
-        Gen2.Entry<Integer> entry = new Gen2.Entry<>(1);
+        GenericInnerClass1.Entry<Integer> entry = new GenericInnerClass1.Entry<>(1);
         final Integer integer = entry.value;
     }
 

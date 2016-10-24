@@ -3,9 +3,12 @@ package meghanada.parser.source;
 import com.esotericsoftware.kryo.DefaultSerializer;
 import com.github.javaparser.Range;
 import com.google.common.base.MoreObjects;
+import meghanada.reflect.MethodParameter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @DefaultSerializer(MethodScopeSerializer.class)
@@ -14,6 +17,7 @@ public class MethodScope extends BlockScope {
     private static Logger log = LogManager.getLogger(MethodScope.class);
     final Range nameRange;
     Map<String, String> typeParameterMap;
+    List<MethodParameter> parameters = new ArrayList<>(4);
 
     public MethodScope(final String name, final Range range, final Range nameRange) {
         super(name, range);
@@ -42,5 +46,9 @@ public class MethodScope extends BlockScope {
 
     public Map<String, String> getTypeParameterMap() {
         return typeParameterMap;
+    }
+
+    public List<MethodParameter> getParameters() {
+        return parameters;
     }
 }

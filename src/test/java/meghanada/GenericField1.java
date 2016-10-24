@@ -3,7 +3,7 @@ package meghanada;
 import java.io.IOException;
 import java.util.List;
 
-public class Gen1<K extends String, V> extends Object {
+public class GenericField1<K extends String, V> extends Object {
 
     public String name;
     public K key;
@@ -11,7 +11,7 @@ public class Gen1<K extends String, V> extends Object {
     public List<List<? extends V>> values;
     public List[] valuesArray;
 
-    public Gen1(String name, K key, V value) throws IOException {
+    public GenericField1(String name, K key, V value) throws IOException {
         this.name = name;
         this.key = key;
         this.value = value;

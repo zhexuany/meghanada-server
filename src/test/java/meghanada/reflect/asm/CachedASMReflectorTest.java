@@ -335,7 +335,7 @@ public class CachedASMReflectorTest extends GradleTestBase {
         cachedASMReflector.createClassIndexes();
 
         {
-            String fqcn = "meghanada.Gen1<Long, String>";
+            String fqcn = "meghanada.GenericField1<Long, String>";
             List<MemberDescriptor> memberDescriptors = cachedASMReflector.reflect(fqcn);
             memberDescriptors.forEach(m -> System.out.println(m.getDisplayDeclaration()));
             assertEquals(16, memberDescriptors.size());
@@ -350,7 +350,7 @@ public class CachedASMReflectorTest extends GradleTestBase {
         cachedASMReflector.addClasspath(getOutputDir());
         cachedASMReflector.addClasspath(getTestOutputDir());
         cachedASMReflector.createClassIndexes();
-        String fqcn = "meghanada.Gen3<Long>";
+        String fqcn = "meghanada.GenericMethod1<Long>";
         List<MemberDescriptor> memberDescriptors = timeIt(() -> cachedASMReflector.reflect(fqcn));
         memberDescriptors.forEach(m -> {
             System.out.println(m.getDeclaration());

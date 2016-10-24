@@ -3,7 +3,7 @@ package meghanada;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Gen4 extends Gen2<Long> {
+public class Gen4 extends GenericInnerClass1<Long> {
 
     public Gen4(String name, Long value) {
         super(name, value);
@@ -11,7 +11,7 @@ public class Gen4 extends Gen2<Long> {
         longList.add(0, 10L);
     }
 
-    public void receive(Gen4 gen4) {
+    public void sameNameVar(Gen4 gen4) {
         final float v = gen4.value.floatValue();
 
         if (v > 0) {
@@ -24,18 +24,18 @@ public class Gen4 extends Gen2<Long> {
         }
     }
 
-    public List receive(Gen4 gen4, boolean b) {
+    public List sameNameVar(Gen4 gen4, boolean b) {
         return null;
     }
 
-    public ArrayList receive(Gen4 gen4, int b) {
+    public ArrayList sameNameVar(Gen4 gen4, int b) {
         return null;
     }
 
     public void doReceive(Gen4 gen4) {
         boolean a = false;
         // return List
-        receive(gen4, a);
+        sameNameVar(gen4, a);
     }
 
 

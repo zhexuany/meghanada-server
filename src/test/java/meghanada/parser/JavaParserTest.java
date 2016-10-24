@@ -940,34 +940,38 @@ public class JavaParserTest extends GradleTestBase {
     public void testParseSimple2() throws Exception {
         JavaSource source = timeIt(() -> {
             JavaParser parser = new JavaParser();
-            return parser.parse(new File("src/test/java/meghanada/Gen1.java"));
+            return parser.parse(new File("src/test/java/meghanada/GenericField1.java"));
         });
 
         for (TypeScope typeScope : source.getTypeScopes()) {
             List<MemberDescriptor> result = typeScope.getMemberDescriptors();
             String type = typeScope.getType();
-            assertEquals("Gen1", type);
+            assertEquals("GenericField1", type);
             assertEquals(6, result.size());
         }
+        source.getAllMember().forEach(memberDescriptor -> {
+            System.out.println(memberDescriptor);
+        });
+
     }
 
     @Test
     public void testParseSimple3() throws Exception {
         JavaSource source = timeIt(() -> {
             JavaParser parser = new JavaParser();
-            return parser.parse(new File("src/test/java/meghanada/Gen2.java"));
+            return parser.parse(new File("src/test/java/meghanada/GenericInnerClass1.java"));
         });
 
         TypeScope typeScope1 = source.getTypeScopes().get(0);
         List<MemberDescriptor> result1 = typeScope1.getMemberDescriptors();
         String type1 = typeScope1.getType();
-        assertEquals("Gen2$Entry", type1);
+        assertEquals("GenericInnerClass1$Entry", type1);
         assertEquals(2, result1.size());
 
         TypeScope typeScope2 = source.getTypeScopes().get(1);
         List<MemberDescriptor> result2 = typeScope2.getMemberDescriptors();
         String type2 = typeScope2.getType();
-        assertEquals("Gen2", type2);
+        assertEquals("GenericInnerClass1", type2);
         assertEquals(5, result2.size());
 
     }
@@ -976,15 +980,17 @@ public class JavaParserTest extends GradleTestBase {
     public void testParseSimple4() throws Exception {
         JavaSource source = timeIt(() -> {
             JavaParser parser = new JavaParser();
-            return parser.parse(new File("src/test/java/meghanada/Gen3.java"));
+            return parser.parse(new File("src/test/java/meghanada/GenericMethod1.java"));
         });
 
         TypeScope typeScope1 = source.getTypeScopes().get(0);
         List<MemberDescriptor> result1 = typeScope1.getMemberDescriptors();
         String type1 = typeScope1.getType();
-        assertEquals("Gen3", type1);
+        assertEquals("GenericMethod1", type1);
         assertEquals(4, result1.size());
-
+        source.getAllMember().forEach(memberDescriptor -> {
+            System.out.println(memberDescriptor);
+        });
     }
 
 }
