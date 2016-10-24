@@ -208,7 +208,9 @@ public class CachedASMReflector {
 
         final String pkg = packageName;
         final Map<String, String> result = new ConcurrentHashMap<>(64);
-        this.globalClassIndex.values().parallelStream()
+        this.globalClassIndex
+                .values()
+                .parallelStream()
                 .filter(ci -> ci.getPackage().equals(pkg))
                 .forEach(ci -> result.putIfAbsent(ci.getName(), ci.getRawDeclaration()));
         return result;

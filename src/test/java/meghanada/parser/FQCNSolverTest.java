@@ -1,7 +1,6 @@
 package meghanada.parser;
 
 import meghanada.GradleTestBase;
-import meghanada.config.Config;
 import meghanada.parser.source.JavaSource;
 import meghanada.reflect.asm.CachedASMReflector;
 import org.junit.After;
@@ -10,6 +9,7 @@ import org.junit.Test;
 
 import java.io.File;
 
+import static meghanada.config.Config.timeIt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -38,15 +38,13 @@ public class FQCNSolverTest extends GradleTestBase {
         assertNotNull(parser);
         FQCNSolver resolver = FQCNSolver.getInstance();
         {
-            String fqcn = Config.debugIt(() -> {
-                final JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
-                return resolver.solveFQCN("log", source).get();
-            });
+            final JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
+            String fqcn = timeIt(() -> resolver.solveFQCN("log", source).get());
             assertEquals("org.apache.logging.log4j.Logger", fqcn);
         }
         {
             final JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
-            String fqcn = resolver.solveFQCN("this", source).get();
+            String fqcn = timeIt(() -> resolver.solveFQCN("this", source).get());
             assertEquals("meghanada.reflect.asm.ASMReflector", fqcn);
         }
     }
@@ -59,7 +57,7 @@ public class FQCNSolverTest extends GradleTestBase {
         assertNotNull(source);
         FQCNSolver resolver = FQCNSolver.getInstance();
         {
-            String fqcn = resolver.solveFQCN("Map$Entry<String, Long>", source).get();
+            String fqcn = timeIt(() -> resolver.solveFQCN("Map$Entry<String, Long>", source).get());
             assertEquals("java.util.Map$Entry<String, Long>", fqcn);
         }
     }
@@ -70,11 +68,11 @@ public class FQCNSolverTest extends GradleTestBase {
         assertNotNull(parser);
         JavaSource source = parser.parse(new File("./src/main/java/meghanada/reflect/asm/ASMReflector.java"));
         assertNotNull(source);
-        FQCNSolver resolver = FQCNSolver.getInstance();
-        {
-            String fqcn = resolver.solveFQCN("Map.Entry<String, Long>", source).get();
-            assertEquals("java.util.Map$Entry<String, Long>", fqcn);
-        }
+        String fqcn = timeIt(() -> {
+            FQCNSolver resolver = FQCNSolver.getInstance();
+            return resolver.solveFQCN("Map.Entry<String, Long>", source).orElse("");
+        });
+        assertEquals("java.util.Map$Entry<String, Long>", fqcn);
     }
 
     @Test
@@ -85,7 +83,7 @@ public class FQCNSolverTest extends GradleTestBase {
         assertNotNull(source);
         FQCNSolver resolver = FQCNSolver.getInstance();
         {
-            String fqcn = resolver.solveFQCN("Map$Entry", source).get();
+            String fqcn = timeIt(() -> resolver.solveFQCN("Map$Entry", source).get());
             assertEquals("java.util.Map$Entry", fqcn);
         }
     }
@@ -98,7 +96,7 @@ public class FQCNSolverTest extends GradleTestBase {
         assertNotNull(source);
         FQCNSolver resolver = FQCNSolver.getInstance();
         {
-            String fqcn = resolver.solveFQCN("Map.Entry", source).get();
+            String fqcn = timeIt(() -> resolver.solveFQCN("Map.Entry", source).get());
             assertEquals("java.util.Map$Entry", fqcn);
         }
     }

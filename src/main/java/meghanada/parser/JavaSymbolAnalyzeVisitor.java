@@ -61,14 +61,14 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final String fqcn = type.toString();
         final String name = ClassNameUtils.getSimpleName(type.getName());
         log.debug("add import name={} fqcn={}", name, fqcn);
-        source.importClass.put(name, fqcn);
+        source.importClass.putIfAbsent(name, fqcn);
         CachedASMReflector.getInstance()
                 .searchInnerClasses(fqcn)
                 .forEach(classIndex -> {
-                    final String name1 = ClassNameUtils.replaceInnerMark(classIndex.getName());
-                    final String fqcn1 = classIndex.getDeclaration();
-                    log.trace("import name={} fqcn={}", name1, fqcn1);
-                    source.importClass.put(name1, fqcn1);
+                    final String innerName = ClassNameUtils.replaceInnerMark(classIndex.getName());
+                    final String innerFqcn = classIndex.getRawDeclaration();
+                    log.trace("add import name={} fqcn={}", innerName, innerFqcn);
+                    source.importClass.putIfAbsent(innerName, innerFqcn);
                 });
         source.addUnusedClass(name, fqcn);
         super.visit(node, source);
@@ -91,13 +91,16 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         CachedASMReflector reflector = CachedASMReflector.getInstance();
         Map<String, String> symbols = reflector.getPackageClasses(pkg);
         for (final Map.Entry<String, String> entry : symbols.entrySet()) {
-            source.importClass.put(entry.getKey(), entry.getValue());
-            reflector.searchInnerClasses(entry.getValue())
+            final String key = ClassNameUtils.replaceInnerMark(entry.getKey());
+            final String val = entry.getValue();
+            log.trace("add import name={} fqcn={}", key, val);
+            source.importClass.putIfAbsent(key, val);
+            reflector.searchInnerClasses(val)
                     .forEach(classIndex -> {
                         final String name1 = ClassNameUtils.replaceInnerMark(classIndex.getName());
-                        final String fqcn1 = classIndex.getDeclaration();
-                        log.trace("import name={} fqcn={}", name1, fqcn1);
-                        source.importClass.put(name1, fqcn1);
+                        final String fqcn1 = classIndex.getRawDeclaration();
+                        log.trace("add import name={} fqcn={}", name1, fqcn1);
+                        source.importClass.putIfAbsent(name1, fqcn1);
                     });
 
             source.addUnusedClass(entry.getKey(), entry.getValue());

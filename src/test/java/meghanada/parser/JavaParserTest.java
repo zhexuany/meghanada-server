@@ -6,6 +6,7 @@ import com.google.common.base.Strings;
 import meghanada.GradleTestBase;
 import meghanada.parser.source.JavaSource;
 import meghanada.parser.source.TypeScope;
+import meghanada.parser.source.Variable;
 import meghanada.reflect.MemberDescriptor;
 import meghanada.reflect.asm.CachedASMReflector;
 import org.junit.Ignore;
@@ -17,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static meghanada.config.Config.timeIt;
 import static org.junit.Assert.assertEquals;
@@ -937,7 +939,7 @@ public class JavaParserTest extends GradleTestBase {
     }
 
     @Test
-    public void testParseSimple2() throws Exception {
+    public void testParseGenField1() throws Exception {
         JavaSource source = timeIt(() -> {
             JavaParser parser = new JavaParser();
             return parser.parse(new File("src/test/java/meghanada/GenericField1.java"));
@@ -956,7 +958,7 @@ public class JavaParserTest extends GradleTestBase {
     }
 
     @Test
-    public void testParseSimple3() throws Exception {
+    public void testParseGenInner1() throws Exception {
         JavaSource source = timeIt(() -> {
             JavaParser parser = new JavaParser();
             return parser.parse(new File("src/test/java/meghanada/GenericInnerClass1.java"));
@@ -974,10 +976,14 @@ public class JavaParserTest extends GradleTestBase {
         assertEquals("GenericInnerClass1", type2);
         assertEquals(5, result2.size());
 
+        final Map<String, Variable> declaratorMap = source.getDeclaratorMap(15);
+        assertEquals("java.lang.Integer", declaratorMap.get("integer1").getFQCN());
+        assertEquals("java.lang.String", declaratorMap.get("value1").getFQCN());
+        assertEquals("java.util.List<String>", declaratorMap.get("value2").getFQCN());
     }
 
     @Test
-    public void testParseSimple4() throws Exception {
+    public void testParseGenMethod1() throws Exception {
         JavaSource source = timeIt(() -> {
             JavaParser parser = new JavaParser();
             return parser.parse(new File("src/test/java/meghanada/GenericMethod1.java"));

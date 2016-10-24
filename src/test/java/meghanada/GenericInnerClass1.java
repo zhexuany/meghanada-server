@@ -1,5 +1,7 @@
 package meghanada;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class GenericInnerClass1<V> {
@@ -12,8 +14,13 @@ public class GenericInnerClass1<V> {
     public GenericInnerClass1(String name, V value) {
         this.name = name;
         this.value = value;
-        GenericInnerClass1.Entry<Integer> entry = new GenericInnerClass1.Entry<>(1);
-        final Integer integer = entry.value;
+        GenericInnerClass1.Entry<Integer> entry1 = new GenericInnerClass1.Entry<>(1);
+        final Integer integer1 = entry1.value;
+        Entry<String> entry2 = new Entry<>("TEST");
+        final String value1 = entry2.value;
+
+        Entry<List<String>> entry3 = new Entry<>(new ArrayList<>());
+        final List<String> value2 = entry3.value;
     }
 
     static class Entry<V> {
