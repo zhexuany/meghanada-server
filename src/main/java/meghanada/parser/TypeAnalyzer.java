@@ -2,12 +2,10 @@ package meghanada.parser;
 
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.body.VariableDeclaratorId;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.Statement;
-import com.google.common.base.Strings;
 import meghanada.parser.source.*;
 import meghanada.reflect.CandidateUnit;
 import meghanada.reflect.MemberDescriptor;
@@ -109,30 +107,6 @@ class TypeAnalyzer {
                     });
 
         });
-    }
-
-    private String getLambdaReturnType(JavaSource source, MemberDescriptor callMethod) {
-        return source.typeHint.getLambdaReturnType();
-    }
-
-    private Optional<String> inferenceReturnFromHint(JavaSource source, MemberDescriptor callMethod) {
-        final String lambdaReturnType = this.getLambdaReturnType(source, callMethod);
-        final MemberDescriptor lambdaMethod = source.typeHint.getLambdaMethod();
-
-
-        if (lambdaReturnType != null && lambdaMethod != null && !lambdaMethod.fixedReturnType()) {
-
-            // <R> R apply(capture of ? super String t)
-            final String returnTypeParameter = lambdaMethod.getReturnTypeKey();
-            lambdaMethod.putTypeParameter(returnTypeParameter, lambdaReturnType);
-            replaceCallMethodType(callMethod, returnTypeParameter, lambdaReturnType);
-
-            return fqcnSolver.solveFQCN(callMethod.getRawReturnType(), source);
-        } else if (lambdaMethod != null && lambdaMethod.fixedReturnType()) {
-
-            return fqcnSolver.solveFQCN(callMethod.getRawReturnType(), source);
-        }
-        return Optional.empty();
     }
 
     private void replaceCallMethodType(MemberDescriptor callMethod, String replaceTypeKey, String returnType) {
@@ -281,16 +255,6 @@ class TypeAnalyzer {
                     final Optional<String> scopeFqcn = this.analyzeExprClass(scope, bs, source);
                     log.trace("MethodReferenceExpr methodName:{} scope:{} type:{}", methodName, scope, x.getTypeArguments());
 
-                    if (x.getParentNode() instanceof MethodCallExpr && scopeFqcn.isPresent()) {
-                        final Optional<String> ref = analyzeLambdaMethodRef(source, methodName, scopeFqcn.get());
-                        log.trace("MethodReferenceExpr methodRef:{}", ref);
-                        if (ref.isPresent()) {
-                            // fix returnType
-                            ref.ifPresent(fqcn -> source.typeHint.addLambdaReturnType(fqcn));
-                            return ref;
-                        }
-                    }
-
                     return scopeFqcn.flatMap(fqcn -> {
                         final CachedASMReflector reflector = CachedASMReflector.getInstance();
                         final Optional<String> result = reflector.reflectStream(fqcn)
@@ -299,7 +263,6 @@ class TypeAnalyzer {
                                 .filter(s -> s != null)
                                 .findFirst();
 
-                        result.ifPresent(returnType -> source.typeHint.addLambdaReturnType(ClassNameUtils.boxing(returnType)));
                         log.trace("MethodReference Return:{}", result);
                         return result;
                     });
@@ -334,164 +297,6 @@ class TypeAnalyzer {
                 .getMatch();
 
         return log.traceExit(entryMessage, solved);
-    }
-
-    private Optional<String> analyzeLambdaMethodRef(JavaSource source, String methodName, String fqcn) {
-        final CachedASMReflector reflector = CachedASMReflector.getInstance();
-
-        final List<MemberDescriptor> refs = reflector.reflectMethodStream(fqcn, methodName)
-                .collect(Collectors.toList());
-
-        // TODO lambda paramIndex
-        final Optional<List<MemberDescriptor>> lambdaMethodResults = getSimpleAnalyzeLambdaMethod(source);
-
-        if (lambdaMethodResults.isPresent()) {
-            final List<MemberDescriptor> lambdaDescriptors = lambdaMethodResults.get();
-
-            for (MemberDescriptor lmd : lambdaDescriptors) {
-                final List<String> lmdParameters = lmd.getParameters();
-                final int lSize = lmdParameters.size();
-                for (MemberDescriptor methodRef : refs) {
-                    if (lSize > 0) {
-                        final String paramFirst = ClassNameUtils.removeCapture(lmdParameters.get(0));
-                        if (methodRef.isStatic()) {
-                            // TODO
-                            final int mSize = methodRef.getParameters().size();
-                            if (mSize == 0) {
-                                // flatMap(s -> AClass.get()) == flatMap(AClass::get)
-                                return Optional.of(methodRef.getRawReturnType());
-                            } else if (mSize == 1) {
-                                // TODO
-                                // flatMap(s -> AClass.get(s)) == flatMap(AClass::get)
-                                return Optional.of(methodRef.getRawReturnType());
-                            } else if (mSize == lSize) {
-                                // TODO
-                            }
-                        } else {
-                            // 1st apply
-                            if (lSize == 0) {
-                                // TODO
-                                // likely ?
-                            } else if (lSize == 1) {
-                                final String mdName = methodRef.getName();
-                                log.trace("analyzeLambdaMethodRef paramFirst:{} name:{}", paramFirst, mdName);
-                                return reflector.reflect(paramFirst)
-                                        .stream()
-                                        .filter(md1 -> md1.getName().equals(mdName))
-                                        .map(MemberDescriptor::getRawReturnType)
-                                        .findFirst();
-                            } else {
-                                // TODO
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
-    private Optional<List<MemberDescriptor>> getSimpleAnalyzeLambdaMethod(JavaSource source) {
-        TypeHint typeHint = source.typeHint;
-        return typeHint.get().map(descriptor -> {
-            for (String parameterType : descriptor.getParameters()) {
-                log.trace("MethodParameter parameterType:{}", parameterType);
-                if (this.isFunctionalInterface(parameterType)) {
-                    log.trace("IsFunctionalInterface:{} Parameter:{}", descriptor.getDeclaration(), parameterType);
-
-                    final CachedASMReflector reflector = CachedASMReflector.getInstance();
-
-                    final List<MemberDescriptor> functions = reflector.reflectStream(parameterType)
-                            .filter(md -> !md.getDeclaringClass().equals(ClassNameUtils.OBJECT_CLASS))
-                            .collect(Collectors.toList());
-
-                    if (functions.size() == 1) {
-                        return functions;
-                    }
-                    return functions.stream()
-                            .filter(md -> !md.hasDefault())
-                            .collect(Collectors.toList());
-
-                }
-            }
-            return null;
-        });
-    }
-
-    private Optional<MemberDescriptor> getAnalyzeLambdaMethod(JavaSource source, final int argCount) {
-        TypeHint typeHint = source.typeHint;
-        return typeHint.get().map(descriptor -> {
-            final int index = typeHint.parameterHintIndex;
-            log.trace("getAnalyzeLambdaMethod parameterHintIndex:{}", index);
-            final List<String> parameters = descriptor.getParameters();
-            if (index < parameters.size()) {
-                String parameterType = descriptor.getParameters().get(index);
-                if (this.isFunctionalInterface(parameterType)) {
-                    log.trace("CallMethod:{} Fn ParameterType:{}", descriptor.getDeclaration(), parameterType);
-
-                    final CachedASMReflector reflector = CachedASMReflector.getInstance();
-
-                    final List<MemberDescriptor> functions = reflector.reflectStream(parameterType)
-                            .filter(md -> !md.getDeclaringClass().equals(ClassNameUtils.OBJECT_CLASS))
-                            .collect(Collectors.toList());
-
-                    // select one
-                    if (functions.size() == 1) {
-                        return typeHint.setLambdaMethod(functions.get(0));
-                    }
-
-                    return typeHint.setLambdaMethod(
-                            functions.stream()
-                                    .filter(md -> !md.hasDefault())
-                                    .filter(md -> md.getParameters().size() == argCount)
-                                    .findFirst()
-                                    .orElse(null));
-                }
-            }
-            return null;
-        });
-    }
-
-    private Optional<Map<String, Variable>> analyzeLambdaParameterTypes(JavaSource source, LambdaExpr x) {
-        final NodeList<Parameter> parameters = x.getParameters();
-        if (parameters == null || parameters.size() == 0) {
-            return Optional.empty();
-        }
-        final int argCount = parameters.size();
-
-        return this.getAnalyzeLambdaMethod(source, argCount).map(lambdaMethod -> {
-
-            log.trace("AnalyzedLambdaMethod method:{}", lambdaMethod.getDeclaration());
-
-            final Map<String, Variable> nsMap = new HashMap<>(8);
-            final Iterator<String> lambdaIt = lambdaMethod.getParameters().iterator();
-            for (Parameter p : parameters) {
-                //if (lambdaIt.hasNext()) {
-                final String fqcn = lambdaIt.next();
-                log.trace("Parameter:{} FQCN:{} Range:{}", p.getType(), fqcn, p.getRange());
-                final boolean varArgs = p.isVarArgs();
-                String type = p.getType().toString();
-                final VariableDeclaratorId declaratorId = p.getId();
-                final int cnt = declaratorId.getArrayBracketPairsAfterId().size();
-                if (cnt > 0) {
-                    type = type + Strings.repeat(ClassNameUtils.ARRAY, cnt);
-                }
-
-                if (type.isEmpty()) {
-                    // TODO set Parent
-                    String paramFqcn = ClassNameUtils.removeCapture(fqcn);
-                    if (!paramFqcn.contains(".")) {
-                        paramFqcn = fqcnSolver.solveFQCN(paramFqcn, source).orElse(paramFqcn);
-                    }
-                    log.trace("Parameter paramFqcn:{} fqcn:{}", paramFqcn, fqcn);
-                    final Variable variable = new Variable("", declaratorId.getName(), p.getRange(), paramFqcn);
-                    nsMap.put(declaratorId.getName(), variable);
-                }
-                //}
-            }
-            // log.info("inferenceType:{} ns:{}", inferenceType, nsMap);
-            return nsMap;
-        });
     }
 
     Optional<String> getReturnType(final JavaSource src, final BlockScope bs, final String declaringClass, final String methodName, final NodeList<Expression> args) {

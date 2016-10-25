@@ -13,6 +13,8 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.TypeParameter;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Splitter;
 import meghanada.parser.source.*;
 import meghanada.reflect.*;
 import meghanada.reflect.asm.CachedASMReflector;
@@ -21,18 +23,23 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.EntryMessage;
 
+import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.leacox.motif.MatchesExact.eq;
+import static com.leacox.motif.Motif.match;
 
 class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     private static Logger log = LogManager.getLogger(JavaSymbolAnalyzeVisitor.class);
     private final FQCNSolver fqcnSolver;
-    private final TypeAnalyzer typeAnalyzer;
+    private final List<AnalyzeReturnTypeFunction> returnTypeFunctions;
 
     JavaSymbolAnalyzeVisitor() {
         this.fqcnSolver = FQCNSolver.getInstance();
-        this.typeAnalyzer = new TypeAnalyzer(this);
+        this.returnTypeFunctions = this.getReturnTypeAnalyzeFunctions();
     }
 
     @Override
@@ -108,7 +115,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         log.traceEntry("EnumConstantDeclaration name={} range={}", node.getName(), node.getRange());
 
         source.getCurrentBlock().ifPresent(blockScope -> node.getArgs()
-                .forEach(expression -> typeAnalyzer.analyzeExprClass(expression, blockScope, source)));
+                .forEach(expression -> this.analyzeExprClass(expression, blockScope, source)));
         final TypeScope current = source.currentType.peek();
         final String type = current.getType();
         if (node.getClassBody().size() > 0) {
@@ -485,7 +492,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
         final Optional<FieldAccessSymbol> result = optional.flatMap(scopeExpr -> {
             final String scopeString = scopeExpr.toString();
-            return this.typeAnalyzer.analyzeExprClass(scopeExpr, blockScope, source)
+            return this.analyzeExprClass(scopeExpr, blockScope, source)
                     .flatMap(exprClass -> {
                         final String declaringClass = this.toFQCN(exprClass, source);
                         return this.createFieldAccessSymbol(fieldName,
@@ -543,11 +550,12 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final Optional<MethodCallSymbol> result = scopeExpression.flatMap(scopeExpr -> {
             final String scopeString = scopeExpr.toString();
 
-            return this.typeAnalyzer.analyzeExprClass(scopeExpr, bs, src)
+            return this.analyzeExprClass(scopeExpr, bs, src)
                     .flatMap(declaringClass -> {
-                        final String maybeReturn = this.typeAnalyzer.
-                                getReturnType(src, bs, declaringClass, methodName, args).
+                        final String maybeReturn = this.getReturnType(src, bs, declaringClass, methodName, args).
                                 orElse(null);
+
+                        log.trace("class={} name={} maybeReturn={}", declaringClass, methodName, maybeReturn);
 
                         return this.createMethodCallSymbol(node,
                                 scopeString,
@@ -578,7 +586,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             symbol.returnType = returnFQCN;
             return Optional.of(symbol);
         }).orElseGet(() -> {
-            final Optional<MethodCallSymbol> mcs = typeAnalyzer.analyzeReturnType(methodName, declaringClass, isLocal, false, source).map(resolved -> {
+            final Optional<MethodCallSymbol> mcs = this.analyzeReturnType(methodName, declaringClass, isLocal, false, source).map(resolved -> {
                 final String returnFQCN = this.toFQCN(resolved, source);
                 symbol.returnType = returnFQCN;
                 return symbol;
@@ -600,7 +608,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         boolean isLocal = scope.equals("this") || scope.equals("super");
 
         // 1. normal field access instanceA.name
-        final Optional<FieldAccessSymbol> fas = this.typeAnalyzer.getReturnFromReflect(name, declaringClass, isLocal, true, source)
+        final Optional<FieldAccessSymbol> fas = this.getReturnFromReflect(name, declaringClass, isLocal, true, source)
                 .map(type -> {
                     symbol.returnType = this.toFQCN(type, source);
                     return symbol;
@@ -611,7 +619,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         }
 
         // 2. access inner class instanceA.innerClassB or ClassA.innerClassB
-        final Optional<FieldAccessSymbol> fas2 = typeAnalyzer.analyzeReturnType(name, declaringClass, isLocal, true, source)
+        final Optional<FieldAccessSymbol> fas2 = this.analyzeReturnType(name, declaringClass, isLocal, true, source)
                 .map(type -> {
                     final String returnFQCN = this.toFQCN(type, source);
                     symbol.returnType = returnFQCN;
@@ -725,10 +733,10 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final EntryMessage entryMessage = log.traceEntry("constructorCall class={}", createClass);
         final NodeList<Expression> args = node.getArgs();
         if (args != null) {
-            final Optional<TypeAnalyzer.MethodSignature> signature = typeAnalyzer.getMethodSignature(src, bs, createClass, args);
+            final Optional<MethodSignature> signature = this.getMethodSignature(src, bs, createClass, args);
 
             final String maybeReturn = signature.flatMap(ms ->
-                    this.typeAnalyzer.getConstructor(src, createClass, args.size(), ms.signature).
+                    this.getConstructor(src, createClass, args.size(), ms.signature).
                             map(CandidateUnit::getReturnType)).orElse(createClass);
 
             final String clazz = ClassNameUtils.getSimpleName(createClass);
@@ -811,10 +819,9 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                 // lambda return
                 final Optional<Expression> expression = node.getExpr();
                 expression.ifPresent(expr -> {
-                    typeAnalyzer.analyzeExprClass(expr, blockScope, source).ifPresent(fqcn -> {
+                    analyzeExprClass(expr, blockScope, source).ifPresent(fqcn -> {
                         final String s = ClassNameUtils.boxing(fqcn);
                         log.trace("Lambda Block ReturnFQCN:{} Expr:{}", s, expression);
-                        source.typeHint.addLambdaReturnType(s);
                     });
                 });
             }
@@ -904,47 +911,6 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         return sb.toString();
     }
 
-//    private String toModifierString(final int modifier) {
-//        final StringBuilder sb = new StringBuilder();
-//        if (Modifier.isPrivate(modifier)) {
-//            sb.append("private ");
-//        }
-//        if (Modifier.isPublic(modifier)) {
-//            sb.append("public ");
-//        }
-//        if (Modifier.isProtected(modifier)) {
-//            sb.append("protected ");
-//        }
-//        if (Modifier.isStatic(modifier)) {
-//            sb.append("static ");
-//        }
-//        if (Modifier.isAbstract(modifier)) {
-//            sb.append("abstract ");
-//        }
-//        if (Modifier.isFinal(modifier)) {
-//            sb.append("final ");
-//        }
-//        if (Modifier.isInterface(modifier)) {
-//            sb.append("interface ");
-//        }
-//        if (Modifier.isNative(modifier)) {
-//            sb.append("native ");
-//        }
-//        if (Modifier.isStrict(modifier)) {
-//            sb.append("strict ");
-//        }
-//        if (Modifier.isSynchronized(modifier)) {
-//            sb.append("synchronized ");
-//        }
-//        if (Modifier.isTransient(modifier)) {
-//            sb.append("transient ");
-//        }
-//        if (Modifier.isVolatile(modifier)) {
-//            sb.append("volatile ");
-//        }
-//        return sb.toString();
-//    }
-
     private String toFQCN(final String type, final JavaSource source) {
         String returnFQCN = ClassNameUtils.removeCapture(type);
 
@@ -963,21 +929,538 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         return this.fqcnSolver.solveFQCN(returnFQCN, source).orElse(returnFQCN);
     }
 
-    private Optional<String> resolveFQCN(final String type, final JavaSource source) {
-        String returnFQCN = ClassNameUtils.removeCapture(type);
+    Optional<MethodSignature> getMethodSignature(final JavaSource src, final BlockScope bs, final String methodName, final NodeList<Expression> args) {
+        final MethodSignature methodSignature = new MethodSignature();
+        final List<String> argTypes = args.stream()
+                .map(expr -> {
+                    final Optional<String> result = this.analyzeExprClass(expr, bs, src);
+                    return result.map(paramType -> {
+                        methodSignature.parameters.add(paramType);
+                        return ClassNameUtils.removeTypeParameter(paramType);
+                    }).orElse(null);
+                })
+                .filter(s -> s != null)
+                .collect(Collectors.toList());
+        if (args.size() != argTypes.size()) {
+            return Optional.empty();
+        }
+        methodSignature.signature = methodName + "::" + argTypes.toString();
+        return Optional.of(methodSignature);
+    }
 
-        final Optional<TypeScope> currentType = source.getCurrentType();
-        if (currentType.isPresent()) {
-            final TypeScope typeScope = currentType.get();
-            if (typeScope instanceof ClassScope) {
-                final ClassScope classScope = (ClassScope) typeScope;
-                final Map<String, String> map = classScope.getTypeParameterMap();
-                if (map.containsKey(returnFQCN)) {
-                    returnFQCN = ClassNameUtils.removeCapture(map.get(returnFQCN));
+    private Stream<MemberDescriptor> reflectMethodStream(final String className,
+                                                         final String name,
+                                                         final int argLen,
+                                                         final MethodSignature sig) {
+
+        final CachedASMReflector reflector = CachedASMReflector.getInstance();
+        return reflector.reflect(className)
+                .stream()
+                .filter(m -> {
+                    final String mName = m.getName();
+                    final List<String> parameters = m.getParameters();
+                    if (mName.equals(name)
+                            && m.matchType(CandidateUnit.MemberType.METHOD)
+                            && parameters.size() == argLen) {
+
+                        final MethodDescriptor md = (MethodDescriptor) m;
+                        final String formalType = md.formalType;
+                        final String signature = sig.signature;
+                        if (formalType != null) {
+                            // TODO refactor
+                            final int start1 = signature.indexOf("[");
+                            final int end1 = signature.lastIndexOf("]");
+                            final Iterable<String> split1 = Splitter.on(",").split(signature.substring(start1 + 1, end1));
+
+                            final String mdSig = m.getSig();
+                            final int start2 = mdSig.indexOf("[");
+                            final int end2 = mdSig.lastIndexOf("]");
+                            final Iterable<String> split2 = Splitter.on(",").split(mdSig.substring(start2 + 1, end2));
+                            final Set<String> typeParameters = md.getTypeParameters();
+
+                            boolean match = true;
+                            final Iterator<String> iterator2 = split2.iterator();
+                            for (final Iterator<String> iterator1 = split1.iterator(); iterator1.hasNext(); ) {
+                                final String next1 = iterator1.next().trim();
+                                final String next2 = iterator2.next().trim();
+
+                                if (next2.startsWith(ClassNameUtils.FORMAL_TYPE_VARIABLE_MARK)) {
+                                    final String key = next2.substring(2);
+                                    if (typeParameters.contains(key)) {
+                                        md.getTypeParameterMap().put(key, next2);
+                                        continue;
+                                    }
+                                    match = false;
+                                } else {
+                                    if (!next1.equals(next2)) {
+                                        match = false;
+                                    }
+                                }
+                            }
+                            return match;
+                        }
+
+                        boolean allMatch = true;
+                        for (int i = 0; i < parameters.size(); i++) {
+                            final String target = sig.parameters.get(i);
+                            final String clazz = parameters.get(i);
+                            if (!reflector.matchClass(target, clazz)) {
+                                allMatch = false;
+                                break;
+                            }
+                        }
+                        return allMatch;
+                    }
+                    return false;
+                });
+    }
+
+    private Optional<MemberDescriptor> getCallingMethod(final JavaSource source,
+                                                        final String declaringClass,
+                                                        final String name,
+                                                        final int size,
+                                                        final MethodSignature methodSignature) {
+
+        final EntryMessage entryMessage = log.traceEntry("getCallingMethod class={} name={} signature={}",
+                declaringClass, name, methodSignature);
+        final Optional<MemberDescriptor> result = source.getCurrentType().map(ts -> {
+            return this.reflectMethodStream(declaringClass, name, size, methodSignature)
+                    .map(MemberDescriptor::clone)
+                    .findFirst()
+                    .orElseGet(() -> {
+                        // get from static import
+                        final CachedASMReflector reflector = CachedASMReflector.getInstance();
+                        final Map<String, String> staticImp = source.staticImp;
+                        if (staticImp.containsKey(name)) {
+                            final String dec = staticImp.get(name);
+                            return reflector.reflectMethodStream(dec, name, size)
+                                    .map(MemberDescriptor::clone)
+                                    .findFirst()
+                                    .orElse(null);
+                        }
+                        return null;
+                    });
+
+        });
+        return log.traceExit(entryMessage, result);
+    }
+
+    private Optional<String> getReturnType(final JavaSource src,
+                                           final BlockScope bs,
+                                           final String declaringClass,
+                                           final String methodName,
+                                           final NodeList<Expression> args) {
+
+        final Optional<MethodSignature> methodSig = this.getMethodSignature(src, bs, methodName, args);
+        return methodSig.flatMap(ms -> {
+            final Optional<MemberDescriptor> callingMethod = this.getCallingMethod(src,
+                    declaringClass,
+                    methodName,
+                    args.size(),
+                    ms);
+
+            return callingMethod.map(md -> {
+                final MethodDescriptor method = (MethodDescriptor) md;
+                final HashSet<String> formalTypes = new HashSet<>(ClassNameUtils.parseTypeParameter(method.formalType));
+                if (formalTypes.size() == 0) {
+                    return this.toFQCN(method.getReturnType(), src);
                 }
+                final Iterator<String> realIterator = ms.parameters.iterator();
+                for (final MethodParameter parameter : method.parameters) {
+                    final String sp = parameter.getType();
+                    final String p = realIterator.next();
+
+                    if (sp.startsWith(ClassNameUtils.FORMAL_TYPE_VARIABLE_MARK)) {
+                        final String typeVal = ClassNameUtils.removeTypeMark(sp);
+                        if (formalTypes.contains(typeVal)) {
+                            method.typeParameterMap.put(typeVal, p);
+                        }
+                        continue;
+                    }
+                    final List<String> sigTypes = ClassNameUtils.parseTypeParameter(sp);
+                    final List<String> realTypes = ClassNameUtils.parseTypeParameter(p);
+                    if (sigTypes.size() == realTypes.size()) {
+                        final Iterator<String> realTypeIterator = realTypes.iterator();
+                        for (final String sig : sigTypes) {
+                            final String real = realTypeIterator.next();
+
+                            if (sig.startsWith(ClassNameUtils.FORMAL_TYPE_VARIABLE_MARK) || sig.startsWith(ClassNameUtils.CLASS_TYPE_VARIABLE_MARK)) {
+                                final String typeVal = ClassNameUtils.removeTypeMark(sig);
+                                log.trace("methodTypeMap type={} real={}", typeVal, real);
+                                if (formalTypes.contains(typeVal)) {
+                                    method.typeParameterMap.put(typeVal, real);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                final String returnType = method.getReturnType();
+                log.trace("returnType={}", returnType);
+                return returnType;
+            });
+        });
+    }
+
+    private Optional<String> analyzeExprClass(final Expression expr, final BlockScope bs, final JavaSource source) {
+        final EntryMessage entryMessage = log.traceEntry("expr={} range={}", expr.getClass().getName(), expr.getRange());
+        final Class scopeExprClass = expr.getClass();
+        final Optional<String> solved = match(scopeExprClass)
+                .when(eq(IntegerLiteralExpr.class)).get(() -> Optional.of("java.lang.Integer"))
+                .when(eq(BooleanLiteralExpr.class)).get(() -> Optional.of("java.lang.Boolean"))
+                .when(eq(LongLiteralExpr.class)).get(() -> Optional.of("java.lang.Long"))
+                .when(eq(CharLiteralExpr.class)).get(() -> Optional.of("java.lang.Character"))
+                .when(eq(ClassExpr.class)).get(() -> {
+                    final ClassExpr clsExpr = (ClassExpr) expr;
+                    final String type = clsExpr.getType().toString();
+                    final String resolvedClass = this.fqcnSolver.solveFQCN(type, source).orElse("java.lang.Class");
+                    log.trace("ClassExpr resolvedClass={}", resolvedClass);
+                    if (!resolvedClass.equals("java.lang.Class")) {
+                        return Optional.of("java.lang.Class<" + resolvedClass + ">");
+                    }
+                    return Optional.of(resolvedClass);
+                })
+                .when(eq(BinaryExpr.class)).get(() -> {
+                    final BinaryExpr x = (BinaryExpr) expr;
+                    final BinaryExpr.Operator op = x.getOperator();
+                    if (op == BinaryExpr.Operator.and
+                            || op == BinaryExpr.Operator.or
+                            || op == BinaryExpr.Operator.equals
+                            || op == BinaryExpr.Operator.notEquals
+                            || op == BinaryExpr.Operator.less
+                            || op == BinaryExpr.Operator.greater
+                            || op == BinaryExpr.Operator.lessEquals
+                            || op == BinaryExpr.Operator.greaterEquals) {
+                        return Optional.of("java.lang.Boolean");
+                    }
+
+                    final Optional<String> left = this.analyzeExprClass(x.getLeft(), bs, source);
+                    final Optional<String> right = this.analyzeExprClass(x.getRight(), bs, source);
+                    return Optional.ofNullable(left.orElse(right.orElse(null)));
+                })
+                .when(eq(ConditionalExpr.class)).get(() -> {
+                    final ConditionalExpr x = (ConditionalExpr) expr;
+                    // eval
+                    final Optional<String> condOp = this.analyzeExprClass(x.getCondition(), bs, source);
+                    final Optional<String> thenOp = this.analyzeExprClass(x.getThenExpr(), bs, source);
+                    final Optional<String> elseOp = this.analyzeExprClass(x.getElseExpr(), bs, source);
+                    return Optional.ofNullable(thenOp.orElse(elseOp.orElse(null)));
+                })
+                .when(eq(UnaryExpr.class)).get(() -> {
+                    UnaryExpr x = (UnaryExpr) expr;
+                    return this.analyzeExprClass(x.getExpr(), bs, source);
+                })
+                .when(eq(AssignExpr.class)).get(() -> {
+                    AssignExpr x = (AssignExpr) expr;
+                    final Optional<String> targetOp = this.analyzeExprClass(x.getTarget(), bs, source);
+                    final Optional<String> valOp = this.analyzeExprClass(x.getValue(), bs, source);
+                    return Optional.ofNullable(targetOp.orElse(valOp.orElse(null)));
+                })
+                .when(eq(InstanceOfExpr.class)).get(() -> {
+                    InstanceOfExpr x = (InstanceOfExpr) expr;
+                    // eval
+                    final Optional<String> condOp = this.analyzeExprClass(x.getExpr(), bs, source);
+                    return Optional.of("java.lang.Boolean");
+                })
+                .when(eq(NameExpr.class)).get(() -> {
+                    final NameExpr x = (NameExpr) expr;
+                    final int line = x.getRange().begin.line;
+                    final Optional<String> result = this.fqcnSolver.solveSymbolFQCN(x.getName(), source, line);
+                    result.ifPresent(fqcn -> {
+                        if (!bs.containsSymbol(x.getName())) {
+                            final String parent = bs.getName();
+                            final Variable symbol = new Variable(parent,
+                                    x.getName(),
+                                    x.getRange(),
+                                    fqcn);
+                            bs.addNameSymbol(symbol);
+                        }
+                    });
+                    return result;
+                })
+                .when(eq(FieldAccessExpr.class)).get(() -> {
+                    FieldAccessExpr x = (FieldAccessExpr) expr;
+                    if (CachedASMReflector.getInstance().containsFQCN(x.toStringWithoutComments())) {
+                        return Optional.of(x.toStringWithoutComments());
+                    }
+                    return this.fieldAccess(x, source, bs).map(AccessSymbol::getReturnType);
+                })
+                .when(eq(MethodCallExpr.class)).get(() -> {
+                    MethodCallExpr x = (MethodCallExpr) expr;
+                    return this.methodCall(x, source, bs).map(AccessSymbol::getReturnType);
+                })
+                .when(eq(ThisExpr.class)).get(() -> {
+                    return source.getCurrentType().map(ts -> {
+                        final String fqcn = ts.getFQCN();
+                        source.getCurrentBlock().ifPresent(blockScope -> {
+                            final Variable v = new Variable(fqcn, "this", expr.getRange(), fqcn);
+                            blockScope.addNameSymbol(v);
+                        });
+                        return fqcn;
+                    });
+                })
+                .when(eq(SuperExpr.class)).get(() -> source.getCurrentType().flatMap(typeScope -> {
+                    if (typeScope instanceof ClassScope) {
+                        ClassScope classScope = (ClassScope) typeScope;
+                        return classScope.getExtendsClasses()
+                                .stream()
+                                .findFirst();
+                    }
+                    return Optional.of(typeScope.getFQCN());
+                }))
+                .when(eq(ObjectCreationExpr.class)).get(() -> {
+                    final ObjectCreationExpr x = (ObjectCreationExpr) expr;
+                    final String constructor = x.getType().toString();
+                    return this.fqcnSolver.solveFQCN(constructor, source);
+                })
+                .when(eq(DoubleLiteralExpr.class)).get(() -> Optional.of("java.lang.Double"))
+                .when(eq(StringLiteralExpr.class)).get(() -> Optional.of("java.lang.String"))
+                .when(eq(EnclosedExpr.class)).get(() -> {
+                    final EnclosedExpr x = (EnclosedExpr) expr;
+                    return x.getInner().flatMap(eExpr -> this.analyzeExprClass(eExpr, bs, source));
+                })
+                .when(eq(CastExpr.class)).get(() -> {
+                    final CastExpr x = (CastExpr) expr;
+                    return this.fqcnSolver.solveFQCN(x.getType().toString(), source);
+                })
+                .when(eq(ArrayAccessExpr.class)).get(() -> {
+                    final ArrayAccessExpr x = (ArrayAccessExpr) expr;
+                    return this.analyzeExprClass(x.getName(), bs, source);
+                })
+                .when(eq(ArrayCreationExpr.class)).get(() -> {
+                    ArrayCreationExpr x = (ArrayCreationExpr) expr;
+                    return this.fqcnSolver.solveFQCN(x.getType().toString(), source);
+                })
+                .when(eq(TypeExpr.class)).get(() -> {
+                    TypeExpr x = (TypeExpr) expr;
+                    return this.fqcnSolver.solveFQCN(x.getType().toString(), source);
+                })
+                .when(eq(NullLiteralExpr.class)).get(Optional::empty)
+                .when(eq(MethodReferenceExpr.class)).get(() -> {
+                    // TODO
+                    MethodReferenceExpr x = (MethodReferenceExpr) expr;
+                    final String methodName = x.getIdentifier();
+                    final Expression scope = x.getScope();
+                    final Optional<String> scopeFqcn = this.analyzeExprClass(scope, bs, source);
+                    log.warn("UnsupportedExpr {} Source:{} Range:{}", x.getClass().getName(), source.getFile(), expr.getRange());
+                    return Optional.empty();
+
+                })
+                .when(eq(LambdaExpr.class)).get(() -> {
+                    final LambdaExpr x = (LambdaExpr) expr;
+                    final NodeList<Parameter> parameters = x.getParameters();
+                    log.warn("UnsupportedExpr {} Source:{} Range:{}", x.getClass().getName(), source.getFile(), expr.getRange());
+                    return Optional.empty();
+                })
+                .orElse(x -> {
+                    log.warn("UnsupportedExpr {}, {} Source:{} Range:{}", x, expr, source.getFile(), expr.getRange());
+                    return Optional.empty();
+                })
+                .getMatch();
+
+        return log.traceExit(entryMessage, solved);
+    }
+
+    private Optional<String> analyzeReturnType(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
+        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+
+        final Optional<String> result = this.returnTypeFunctions.stream()
+                .map(function -> function.apply(name, declaringClass, isLocal, isField, source))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .findFirst();
+
+        return log.traceExit(result);
+    }
+
+    private List<AnalyzeReturnTypeFunction> getReturnTypeAnalyzeFunctions() {
+        final List<AnalyzeReturnTypeFunction> searchFunctions = new ArrayList<>(4);
+        searchFunctions.add(this::getReturnFromSource);
+        searchFunctions.add(this::getReturnEnum);
+        searchFunctions.add(this::getReturnFromStaticImp);
+        searchFunctions.add(this::getReturnFromReflect);
+        return searchFunctions;
+    }
+
+    private Optional<String> getReturnFromSource(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
+        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+
+        if (isField) {
+            if (isLocal) {
+                final Optional<String> result = fqcnSolver.solveThisScope(name, source);
+                if (result.isPresent()) {
+                    log.debug("resolved: {} -> FQCN:{}", name, result);
+                    return log.traceExit(result);
+                }
+            }
+            final Optional<String> result = source.getCurrentType().flatMap(typeScope -> {
+
+                if (typeScope.getFQCN().equals(declaringClass)) {
+                    final Optional<String> resolved = fqcnSolver.solveFQCN(name, source);
+                    log.debug("resolved: {} -> FQCN:{}", name, resolved);
+                    return resolved;
+                }
+                return Optional.empty();
+            });
+            return log.traceExit(result);
+        }
+        final Optional<String> result = source.getCurrentType().flatMap(typeScope -> {
+            if (typeScope.getFQCN().equals(declaringClass)) {
+                final Optional<String> resolved = typeScope.getMemberDescriptors().stream()
+                        .filter(md -> md.matchType(CandidateUnit.MemberType.METHOD) && md.getName().equals(name))
+                        .map(CandidateUnit::getReturnType)
+                        .findFirst();
+                log.debug("resolved: {} -> FQCN:{}", name, resolved);
+                return resolved;
+            }
+            return Optional.empty();
+        });
+        return log.traceExit(result);
+    }
+
+    private Optional<String> getReturnEnum(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
+        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        CachedASMReflector reflector = CachedASMReflector.getInstance();
+
+        // Try Search Enum
+        final Optional<String> result = reflector.containsClassIndex(declaringClass)
+                .map(classIndex -> {
+                    String enumName = classIndex.getRawDeclaration() + ClassNameUtils.INNER_MARK + name;
+                    if (reflector.containsFQCN(enumName)) {
+                        log.debug("resolved: {} -> FQCN:{}", name, enumName);
+                        return enumName;
+                    }
+                    final String result1 = classIndex.supers.stream()
+                            .map(s -> s + ClassNameUtils.INNER_MARK + name)
+                            .filter(reflector::containsFQCN)
+                            .findFirst().orElse(null);
+                    if (result1 != null) {
+                        log.debug("resolved: {} -> FQCN:{}", name, result1);
+                    }
+                    return result1;
+                });
+        return log.traceExit(result);
+    }
+
+    private Optional<String> getReturnFromStaticImp(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
+        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        if (source.staticImp.containsKey(name)) {
+            final String dec = source.staticImp.get(name);
+            final Optional<String> result = getReturnFromReflect(name, dec, isLocal, isField, source);
+            return log.traceExit(result);
+        }
+        final Optional<String> empty = Optional.empty();
+        return log.traceExit(empty);
+    }
+
+    public Optional<String> getReturnFromReflect(final String name, String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
+        final EntryMessage entryMessage = log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+
+        final CachedASMReflector reflector = CachedASMReflector.getInstance();
+        if (ClassNameUtils.isClassArray(declaringClass)) {
+            // class array ?
+            if (isField && name.equals("length")) {
+                // is Class<?>[]
+                final Optional<String> optional = Optional.of("int");
+                return log.traceExit(entryMessage, optional);
+            }
+            if (!isField && name.equals("clone")) {
+                // is Class<?>[]
+                final Optional<String> optional = Optional.of(declaringClass);
+                return log.traceExit(entryMessage, optional);
             }
         }
 
-        return this.fqcnSolver.solveFQCN(returnFQCN, source);
+        File classFile = reflector.getClassFile(ClassNameUtils.removeTypeAndArray(declaringClass));
+        if (classFile == null) {
+            // try inner class
+            final Optional<String> res = ClassNameUtils.toInnerClassName(declaringClass);
+            if (res.isPresent()) {
+                declaringClass = res.orElse(declaringClass);
+            }
+            classFile = reflector.getClassFile(ClassNameUtils.removeTypeAndArray(declaringClass));
+            if (classFile == null) {
+                log.debug("getReturnFromReflect classFile null name:{} declaringClass:{}", name, declaringClass);
+                final Optional<String> empty = Optional.empty();
+                return log.traceExit(entryMessage, empty);
+            }
+        }
+        final String declaringClass2 = declaringClass;
+
+        boolean onlyPublic = !isLocal && classFile.getName().endsWith("jar");
+
+        final String result = reflector.reflectStream(declaringClass2)
+                .filter(md -> this.returnTypeFilter(name, isField, onlyPublic, md))
+                .map(md -> {
+                    if (isField) {
+                        return md.getRawReturnType();
+                    }
+                    MethodDescriptor method = (MethodDescriptor) md;
+                    log.trace("found={} declaringClass={}", method.rawDeclaration(), declaringClass2);
+                    final String type = md.getRawReturnType();
+                    return fqcnSolver.solveFQCN(type, source).orElse(type);
+                })
+                .findFirst()
+                .orElseGet(() -> {
+                    String dc = declaringClass2;
+
+                    while (dc.contains(ClassNameUtils.INNER_MARK)) {
+                        dc = dc.substring(0, dc.lastIndexOf(ClassNameUtils.INNER_MARK));
+                        final Optional<String> ret = reflector.reflectStream(dc)
+                                .filter(md -> this.returnTypeFilter(name, isField, onlyPublic, md))
+                                .map(md -> {
+                                    final String type = md.getRawReturnType();
+                                    final String s = fqcnSolver.solveFQCN(type, source).orElse(type);
+                                    log.trace("found={}", s);
+                                    return s;
+                                })
+                                .findFirst();
+                        if (ret.isPresent()) {
+                            return ret.orElse("");
+                        }
+                    }
+                    return null;
+                });
+        if (result != null) {
+            log.debug("resolved: {} -> FQCN:{}", name, result);
+        }
+        final Optional<String> result1 = Optional.ofNullable(result);
+        return log.traceExit(entryMessage, result1);
     }
+
+    private boolean returnTypeFilter(String name, Boolean isField, boolean onlyPublic, MemberDescriptor md) {
+        final String mdName = md.getName();
+        if (mdName.equals(name)) {
+            if (isField && (md.matchType(CandidateUnit.MemberType.FIELD) || md.matchType(CandidateUnit.MemberType.VAR))) {
+                // field
+                return !onlyPublic || md.getDeclaration().contains("public");
+            } else if (!isField && md.matchType(CandidateUnit.MemberType.METHOD)) {
+                // method
+                return !onlyPublic || md.getDeclaration().contains("public");
+            }
+        }
+        return false;
+    }
+
+    private Optional<MemberDescriptor> getConstructor(final JavaSource source, final String createClass, final int size, final String sig) {
+        return source.getCurrentType().flatMap(ts -> {
+            final CachedASMReflector reflector = CachedASMReflector.getInstance();
+            return reflector.reflectConstructorStream(createClass, size, sig)
+                    .findFirst();
+        });
+    }
+
+    private static class MethodSignature {
+        String signature;
+        List<String> parameters = new ArrayList<>(2);
+
+        @Override
+        public String toString() {
+            return MoreObjects.toStringHelper(this)
+                    .add("s", signature)
+                    .add("p", parameters)
+                    .toString();
+        }
+    }
+
 }

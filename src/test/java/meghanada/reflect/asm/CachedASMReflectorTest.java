@@ -338,7 +338,7 @@ public class CachedASMReflectorTest extends GradleTestBase {
             String fqcn = "meghanada.GenericField1<Long, String>";
             List<MemberDescriptor> memberDescriptors = cachedASMReflector.reflect(fqcn);
             memberDescriptors.forEach(m -> System.out.println(m.getDisplayDeclaration()));
-            assertEquals(18, memberDescriptors.size());
+            assertEquals(19, memberDescriptors.size());
 
         }
 
@@ -469,4 +469,38 @@ public class CachedASMReflectorTest extends GradleTestBase {
             }
         });
     }
+
+    @Test
+    public void testMatchClass1() throws Exception {
+        CachedASMReflector cachedASMReflector = CachedASMReflector.getInstance();
+        cachedASMReflector.addClasspath(getOutputDir());
+        cachedASMReflector.createClassIndexes();
+        String target = "java.lang.String";
+        String clazz = "java.lang.Object";
+        final boolean b = cachedASMReflector.matchClass(target, clazz);
+        assertEquals(true, b);
+    }
+
+    @Test
+    public void testMatchClass2() throws Exception {
+        CachedASMReflector cachedASMReflector = CachedASMReflector.getInstance();
+        cachedASMReflector.addClasspath(getOutputDir());
+        cachedASMReflector.createClassIndexes();
+        String target = "java.lang.String";
+        String clazz = "java.lang.String";
+        final boolean b = cachedASMReflector.matchClass(target, clazz);
+        assertEquals(true, b);
+    }
+
+    @Test
+    public void testMatchClass3() throws Exception {
+        CachedASMReflector cachedASMReflector = CachedASMReflector.getInstance();
+        cachedASMReflector.addClasspath(getOutputDir());
+        cachedASMReflector.createClassIndexes();
+        String target = "java.lang.String[]";
+        String clazz = "java.lang.String[]";
+        final boolean b = cachedASMReflector.matchClass(target, clazz);
+        assertEquals(true, b);
+    }
+
 }

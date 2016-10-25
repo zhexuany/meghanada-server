@@ -34,7 +34,6 @@ public class JavaSource {
     public Map<String, String> unusedClass = new HashMap<>(32);
     public Set<String> unknownClass = new HashSet<>(16);
     public Deque<TypeScope> currentType = new ArrayDeque<>(8);
-    public TypeHint typeHint = new TypeHint();
 
     public Map<String, String> resolveHints = new HashMap<>(8);
 

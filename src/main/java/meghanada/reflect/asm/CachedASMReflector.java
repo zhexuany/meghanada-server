@@ -504,6 +504,7 @@ public class CachedASMReflector {
     }
 
     public Stream<MemberDescriptor> reflectMethodStream(final String className, final String name, final int argLen, final String sig) {
+
         return this.reflect(className)
                 .stream()
                 .filter(m -> {
@@ -584,6 +585,23 @@ public class CachedASMReflector {
                 .putAll(this.getPackageClasses("java.lang"))
                 .build();
         return this.standardClasses;
+    }
+
+    public boolean matchClass(final String target, final String clazz) {
+        if (clazz.equals(ClassNameUtils.OBJECT_CLASS) || clazz.equals("Object")) {
+            return true;
+        }
+        final ClassName className = new ClassName(target);
+        final String name = className.getName();
+        if (this.globalClassIndex.containsKey(name)) {
+            final ClassIndex classIndex = this.globalClassIndex.get(name);
+            final String returnType = classIndex.getReturnType();
+            final HashSet<String> classSet = new HashSet<>(classIndex.supers);
+            classSet.add(returnType);
+            final ClassName className1 = new ClassName(clazz);
+            return classSet.contains(className1.getName());
+        }
+        return false;
     }
 
 }
