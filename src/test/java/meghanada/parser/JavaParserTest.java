@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import static meghanada.config.Config.timeIt;
+import static meghanada.config.Config.traceIt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -940,7 +941,7 @@ public class JavaParserTest extends GradleTestBase {
 
     @Test
     public void testParseGenField1() throws Exception {
-        JavaSource source = timeIt(() -> {
+        JavaSource source = traceIt(() -> {
             JavaParser parser = new JavaParser();
             return parser.parse(new File("src/test/java/meghanada/GenericField1.java"));
         });
@@ -984,7 +985,7 @@ public class JavaParserTest extends GradleTestBase {
 
     @Test
     public void testParseGenMethod1() throws Exception {
-        JavaSource source = timeIt(() -> {
+        JavaSource source = traceIt(() -> {
             JavaParser parser = new JavaParser();
             return parser.parse(new File("src/test/java/meghanada/GenericMethod1.java"));
         });

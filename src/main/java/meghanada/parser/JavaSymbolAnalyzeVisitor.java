@@ -174,6 +174,35 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         log.traceExit();
     }
 
+
+    @Override
+    public void visit(final ClassOrInterfaceType node, final JavaSource source) {
+        final String name = node.getName();
+        final EntryMessage entryMessage = log.traceEntry("ClassOrInterfaceType name={}", name);
+
+        node.getTypeArguments().ifPresent(list -> {
+            list.forEach(type -> {
+                if (type instanceof ClassOrInterfaceType) {
+                    this.visit((ClassOrInterfaceType) type, source);
+                }
+            });
+        });
+
+        super.visit(node, source);
+        if (source.resolveHints.containsKey(name)) {
+            final String fqcn = source.resolveHints.get(name);
+            node.setName(fqcn);
+            log.trace("solve {} to {}", name, fqcn);
+        } else {
+            final String fqcn = this.toFQCN(node.getName(), source);
+            node.setName(fqcn);
+            this.markUsedClass(fqcn, source);
+            source.resolveHints.putIfAbsent(name, fqcn);
+            log.trace("solve {} to {}", name, fqcn);
+        }
+        log.traceExit(entryMessage);
+    }
+
     @Override
     public void visit(final ClassOrInterfaceDeclaration node, final JavaSource source) {
         final EntryMessage entryMessage = log.traceEntry("ClassOrInterfaceDeclaration name={} range={}", node.getName(), node.getRange());
@@ -182,8 +211,12 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final NodeList<ClassOrInterfaceType> nExtends = node.getExtends();
         final NodeList<TypeParameter> typeParameters = node.getTypeParameters();
 
-        final List<String> typeParams = typeParameters.stream()
-                .map(TypeParameter::getName)
+        final List<String> typeParams = typeParameters
+                .stream()
+                .map(typeParameter -> {
+                    this.visit(typeParameter, source);
+                    return typeParameter.toString();
+                })
                 .collect(Collectors.toList());
 
         String className = node.getName();
@@ -197,40 +230,41 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
         final ClassScope classScope = new ClassScope(source.pkg, className, node.getRange(), node.getNameExpr().getRange(), node.isInterface());
 
-        final List<String> extendsClasses = nExtends.stream().map(ci -> {
-            final String name = ci.getName();
-            final String fqcn = this.fqcnSolver.solveFQCN(name, source).orElse(name);
-            this.markUsedClass(fqcn, source);
-            reflector.reflectFieldStream(fqcn).forEach(md -> {
-                final String declaration = md.getDeclaration();
-                if (declaration.contains("public") || declaration.contains("protected")) {
-                    final String returnType = md.getReturnType();
-                    final String solved = this.fqcnSolver.solveFQCN(returnType, source).orElse(returnType);
-                    final Variable ns = new Variable(
-                            md.getDeclaringClass(),
-                            md.getName(),
-                            node.getRange(),
-                            solved,
-                            true);
-                    classScope.addFieldSymbol(ns);
-                }
-            });
-            return fqcn;
-        }).collect(Collectors.toList());
+        final List<String> extendsClasses = nExtends
+                .stream()
+                .map(type -> {
+                    this.visit(type, source);
+                    final String name = type.getName();
+                    reflector.reflectFieldStream(name).forEach(md -> {
+                        final String declaration = md.getDeclaration();
+                        if (declaration.contains("public") || declaration.contains("protected")) {
+                            final String returnType = md.getReturnType();
+                            final String solved = this.fqcnSolver.solveFQCN(returnType, source).orElse(returnType);
+                            final Variable ns = new Variable(
+                                    md.getDeclaringClass(),
+                                    md.getName(),
+                                    node.getRange(),
+                                    solved,
+                                    true);
+                            classScope.addFieldSymbol(ns);
+                        }
+                    });
+                    return name;
+                }).collect(Collectors.toList());
 
-        final List<String> implClasses = nImplements.stream().map(ci -> {
-            final String name = ci.getName();
-            final String fqcn = fqcnSolver.solveFQCN(name, source).orElse(name);
-            this.markUsedClass(fqcn, source);
-            return fqcn;
-        }).collect(Collectors.toList());
+        final List<String> implClasses = nImplements
+                .stream()
+                .map(type -> {
+                    this.visit(type, source);
+                    return type.getName();
+                }).collect(Collectors.toList());
 
         classScope.setExtendsClasses(extendsClasses);
         classScope.setImplClasses(implClasses);
         classScope.setTypeParameters(typeParams);
 
         source.currentType.push(classScope);
-        this.setClassTypeParameter(typeParameters, classScope, source);
+        this.setClassTypeParameter(typeParameters, classScope);
         log.trace("start ClassOrInterface:{}, Range:{}", className, node.getRange());
         super.visit(node, source);
         log.trace("end   ClassOrInterface:{}, Range:{}", className, node.getRange());
@@ -239,22 +273,19 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         log.traceExit(entryMessage);
     }
 
-    private void setClassTypeParameter(final NodeList<TypeParameter> typeParameters, final ClassScope classScope, final JavaSource source) {
+    private void setClassTypeParameter(final NodeList<TypeParameter> typeParameters, final ClassScope scope) {
         typeParameters.forEach(tp -> {
-            final String name = tp.getName();
-            if (name != null && !name.isEmpty()) {
-                final NodeList<ClassOrInterfaceType> typeBounds = tp.getTypeBound();
-                if (typeBounds != null && typeBounds.size() > 0) {
-                    typeBounds.forEach(classOrInterfaceType -> {
-                        final String tb = classOrInterfaceType.getName();
-                        final String fqcn = this.toFQCN(tb, source);
-                        classScope.getTypeParameterMap().put(name, fqcn);
-                        log.trace("put class typeParameterMap name={} typeBound={} fqcn={}", name, tb, fqcn);
-                    });
-                } else {
-                    classScope.getTypeParameterMap().put(name, ClassNameUtils.OBJECT_CLASS);
-                    log.trace("put class typeParameterMap name={} typeBound=Object fqcn={}", name, ClassNameUtils.OBJECT_CLASS);
-                }
+            final String key = tp.getName();
+            final NodeList<ClassOrInterfaceType> typeBounds = tp.getTypeBound();
+            if (typeBounds != null && typeBounds.size() > 0) {
+                typeBounds.forEach(typeBound -> {
+                    final String tb = typeBound.getName();
+                    scope.getTypeParameterMap().put(key, tb);
+                    log.trace("put class typeParameterMap name={} typeBound={} fqcn={}", key, tb, tb);
+                });
+            } else {
+                scope.getTypeParameterMap().put(key, ClassNameUtils.OBJECT_CLASS);
+                log.trace("put class typeParameterMap name={} typeBound=Object fqcn={}", key, ClassNameUtils.OBJECT_CLASS);
             }
         });
     }
@@ -284,7 +315,16 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final EntryMessage entryMessage = log.traceEntry("FieldDeclaration:{}, Range:{}", node, node.getRange());
         source.getCurrentType().ifPresent(ts -> {
 
+            final Type elementType = node.getElementType();
+            String name1 = elementType.toString();
+            log.trace("@name1={}", name1);
+            if (elementType instanceof ClassOrInterfaceType) {
+                this.visit((ClassOrInterfaceType) elementType, source);
+                name1 = ((ClassOrInterfaceType) elementType).getName();
+            }
+            log.trace("@@name1={}", name1);
             for (final VariableDeclarator v : node.getVariables()) {
+
                 String type = node.getElementType().toString();
                 final VariableDeclaratorId declaratorId = v.getId();
                 type = type + node.getArrayBracketPairsAfterElementType().toString();

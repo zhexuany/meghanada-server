@@ -36,6 +36,8 @@ public class JavaSource {
     public Deque<TypeScope> currentType = new ArrayDeque<>(8);
     public TypeHint typeHint = new TypeHint();
 
+    public Map<String, String> resolveHints = new HashMap<>(8);
+
     public JavaSource(final File file) {
         this.file = file;
     }
