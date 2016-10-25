@@ -521,7 +521,7 @@ public class CachedASMReflector {
                             final int end1 = sig.lastIndexOf("]");
                             final Iterable<String> split1 = Splitter.on(",").split(sig.substring(start1 + 1, end1));
 
-                            final String mdSig = m.getSig();
+                            final String mdSig = m.getMethodSignature();
                             final int start2 = mdSig.indexOf("[");
                             final int end2 = mdSig.lastIndexOf("]");
                             final Iterable<String> split2 = Splitter.on(",").split(mdSig.substring(start2 + 1, end2));
@@ -548,7 +548,7 @@ public class CachedASMReflector {
                             return match;
                         }
 
-                        final String mdSig = m.getSig();
+                        final String mdSig = m.getMethodSignature();
                         log.trace("compare sig sig={} mdSig={}", sig, mdSig);
                         return sig.equals(mdSig);
                     }

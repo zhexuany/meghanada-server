@@ -90,7 +90,7 @@ public class FieldDescriptor extends MemberDescriptor implements Serializable {
     }
 
     @Override
-    public String getSig() {
+    public String getMethodSignature() {
         return ClassNameUtils.removeTypeParameter(this.returnType);
     }
 }

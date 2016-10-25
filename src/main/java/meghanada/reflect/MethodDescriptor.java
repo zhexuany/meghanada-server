@@ -233,7 +233,7 @@ public class MethodDescriptor extends MemberDescriptor implements Serializable {
     }
 
     @Override
-    public String getSig() {
+    public String getMethodSignature() {
         final List<String> plist = this.parameters
                 .stream()
                 .map(p -> ClassNameUtils.removeTypeParameter(p.type))

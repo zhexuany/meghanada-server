@@ -23,7 +23,7 @@ public abstract class MemberDescriptor implements CandidateUnit, Cloneable {
 
     public abstract List<String> getParameters();
 
-    public abstract String getSig();
+    public abstract String getMethodSignature();
 
     public abstract String getRawReturnType();
 

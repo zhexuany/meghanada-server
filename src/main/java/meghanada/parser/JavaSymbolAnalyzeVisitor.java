@@ -965,14 +965,8 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
                         final MethodDescriptor md = (MethodDescriptor) m;
                         final String formalType = md.formalType;
-                        final String signature = sig.signature;
                         if (formalType != null) {
-                            // TODO refactor
-                            final int start1 = signature.indexOf("[");
-                            final int end1 = signature.lastIndexOf("]");
-                            final Iterable<String> split1 = Splitter.on(",").split(signature.substring(start1 + 1, end1));
-
-                            final String mdSig = m.getSig();
+                            final String mdSig = m.getMethodSignature();
                             final int start2 = mdSig.indexOf("[");
                             final int end2 = mdSig.lastIndexOf("]");
                             final Iterable<String> split2 = Splitter.on(",").split(mdSig.substring(start2 + 1, end2));
@@ -980,7 +974,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
                             boolean match = true;
                             final Iterator<String> iterator2 = split2.iterator();
-                            for (final Iterator<String> iterator1 = split1.iterator(); iterator1.hasNext(); ) {
+                            for (final Iterator<String> iterator1 = sig.parameters.iterator(); iterator1.hasNext(); ) {
                                 final String next1 = iterator1.next().trim();
                                 final String next2 = iterator2.next().trim();
 
