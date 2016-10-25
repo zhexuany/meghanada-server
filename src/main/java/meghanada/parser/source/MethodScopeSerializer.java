@@ -159,6 +159,7 @@ public class MethodScopeSerializer extends Serializer<MethodScope> {
         scope.isLambdaBlock = input.readBoolean();
 
         // 11. typeParameters
+        @SuppressWarnings("unchecked")
         final Map<String, String> map = (Map<String, String>) kryo.readClassAndObject(input);
         scope.typeParameterMap = map;
 

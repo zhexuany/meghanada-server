@@ -219,7 +219,7 @@ public class JavaParserTest extends GradleTestBase {
             List<MemberDescriptor> result = typeScope.getMemberDescriptors();
             String type = pkg + "." + typeScope.getType();
             assertEquals("meghanada.parser.source.JavaSource", type);
-            assertEquals(42, result.size());
+            assertEquals(43, result.size());
         }
     }
 
@@ -234,7 +234,7 @@ public class JavaParserTest extends GradleTestBase {
             List<MemberDescriptor> result = typeScope.getMemberDescriptors();
             String type = typeScope.getFQCN();
             assertEquals("meghanada.parser.JavaSymbolAnalyzeVisitor", type);
-            assertEquals(37, result.size());
+            assertEquals(41, result.size());
         }
 
     }
@@ -452,7 +452,7 @@ public class JavaParserTest extends GradleTestBase {
             List<MemberDescriptor> result = typeScope.getMemberDescriptors();
             String type = typeScope.getFQCN();
             assertEquals("meghanada.parser.FQCNSolver", type);
-            assertEquals(24, result.size());
+            assertEquals(25, result.size());
         }
 
     }
@@ -950,7 +950,7 @@ public class JavaParserTest extends GradleTestBase {
             List<MemberDescriptor> result = typeScope.getMemberDescriptors();
             String type = typeScope.getType();
             assertEquals("GenericField1", type);
-            assertEquals(6, result.size());
+            assertEquals(7, result.size());
         }
         source.getAllMember().forEach(memberDescriptor -> {
             System.out.println(memberDescriptor);
