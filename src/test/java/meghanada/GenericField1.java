@@ -5,6 +5,7 @@ import java.util.List;
 
 public class GenericField1<K extends String, V> extends SuperClass {
 
+    public java.util.List[] list;
     public List<List<? extends V>> values;
     public String name;
     public K key;

@@ -60,11 +60,11 @@ public class Variable {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                .add("name", name)
                 .add("fqcn", fqcn)
-                .add("parent", parent)
+                .add("name", name)
                 .add("range", range)
                 .add("declaration", declaration)
+                .add("parent", parent)
                 .toString();
     }
 

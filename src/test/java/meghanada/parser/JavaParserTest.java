@@ -234,7 +234,7 @@ public class JavaParserTest extends GradleTestBase {
             List<MemberDescriptor> result = typeScope.getMemberDescriptors();
             String type = typeScope.getFQCN();
             assertEquals("meghanada.parser.JavaSymbolAnalyzeVisitor", type);
-            assertEquals(41, result.size());
+            assertEquals(40, result.size());
         }
 
     }
@@ -677,6 +677,36 @@ public class JavaParserTest extends GradleTestBase {
     }
 
     @Test
+    public void testParseClass38() throws Exception {
+        JavaSource source = timeIt(() -> {
+            JavaParser javaParser = new JavaParser();
+            return javaParser.parse(new File("./src/main/java/meghanada/config/Config.java"));
+        });
+        assertNotNull(source);
+        String pkg = source.getPkg();
+
+        assertEquals(2, source.getTypeScopes().size());
+
+        TypeScope typeScope1 = source.getTypeScopes().get(0);
+        List<MemberDescriptor> result1 = typeScope1.getMemberDescriptors();
+        String type1 = typeScope1.getFQCN();
+        assertEquals("meghanada.config.Config$SimpleSupplier", type1);
+        assertEquals(1, result1.size());
+        result1.forEach(memberDescriptor -> {
+            System.out.println(memberDescriptor);
+        });
+
+        TypeScope typeScope2 = source.getTypeScopes().get(1);
+        List<MemberDescriptor> result2 = typeScope2.getMemberDescriptors();
+        String type2 = typeScope2.getFQCN();
+        assertEquals("meghanada.config.Config", type2);
+        assertEquals(40, result2.size());
+        result2.forEach(memberDescriptor -> {
+            System.out.println(memberDescriptor);
+        });
+    }
+
+    @Test
     public void testParseAll() throws Exception {
         JavaParser parser = new JavaParser();
 
@@ -950,7 +980,7 @@ public class JavaParserTest extends GradleTestBase {
             List<MemberDescriptor> result = typeScope.getMemberDescriptors();
             String type = typeScope.getType();
             assertEquals("GenericField1", type);
-            assertEquals(7, result.size());
+            assertEquals(8, result.size());
         }
         source.getAllMember().forEach(memberDescriptor -> {
             System.out.println(memberDescriptor);

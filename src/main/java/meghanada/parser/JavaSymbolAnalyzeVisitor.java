@@ -1,7 +1,7 @@
 package meghanada.parser;
 
 import com.github.javaparser.Range;
-import com.github.javaparser.ast.AccessSpecifier;
+import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.PackageDeclaration;
@@ -21,7 +21,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.EntryMessage;
 
-import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -38,12 +37,13 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     @Override
     public void visit(final PackageDeclaration node, final JavaSource source) {
+        final EntryMessage entryMessage = log.traceEntry("PackageDeclaration name={}", node.getName(), node.getRange());
         source.pkg = node.getName().toString();
-        super.visit(node, source);
+        log.traceExit(entryMessage);
     }
 
     @Override
-    public void visit(SingleStaticImportDeclaration node, JavaSource source) {
+    public void visit(final SingleStaticImportDeclaration node, final JavaSource source) {
         final String member = node.getStaticMember();
         final String fqcn = node.getType().toString();
         log.trace("member={} fqcn={}", member, fqcn);
@@ -52,7 +52,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     }
 
     @Override
-    public void visit(SingleTypeImportDeclaration node, JavaSource source) {
+    public void visit(final SingleTypeImportDeclaration node, final JavaSource source) {
         final ClassOrInterfaceType type = node.getType();
         final String fqcn = type.toString();
         final String name = ClassNameUtils.getSimpleName(type.getName());
@@ -317,57 +317,32 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final EntryMessage entryMessage = log.traceEntry("FieldDeclaration:{}, Range:{}", node, node.getRange());
         source.getCurrentType().ifPresent(ts -> {
 
-            final Type elementType = node.getElementType();
-            String name1 = elementType.toString();
-            log.trace("@name1={}", name1);
-            if (elementType instanceof ClassOrInterfaceType) {
-                this.visit((ClassOrInterfaceType) elementType, source);
-                name1 = ((ClassOrInterfaceType) elementType).getName();
-            }
-            log.trace("@@name1={}", name1);
+            final String typeStr = node.getElementType().toString();
+            final ClassOrInterfaceType cot = new ClassOrInterfaceType(typeStr);
+            this.visit(cot, source);
+            final String fqcn = cot.toString();
             for (final VariableDeclarator v : node.getVariables()) {
-
-                String type = node.getElementType().toString();
                 final VariableDeclaratorId declaratorId = v.getId();
-                type = type + node.getArrayBracketPairsAfterElementType().toString();
-                Optional<String> result = this.resolveFQCN(type, source);
-                log.debug("result:{} {}", result, declaratorId);
-
-                if (!result.isPresent()) {
-                    if (ClassNameUtils.isArray(type)) {
-                        result = Optional.of(ClassNameUtils.OBJECT_CLASS + ClassNameUtils.ARRAY);
-                        log.warn("Unknown Type:{}. use Object[]", type);
-                    } else {
-                        result = Optional.of(ClassNameUtils.OBJECT_CLASS);
-                        log.warn("Unknown Type:{}. use Object", type);
-                    }
-                }
-                result.ifPresent(fqcn -> {
-                    this.markUsedClass(fqcn, source);
-
-                    final String name = declaratorId.getName();
-                    final String declaringClass = ts.getFQCN();
-
-                    final Variable ns = new Variable(
-                            declaringClass,
-                            name,
-                            declaratorId.getRange(),
-                            fqcn,
-                            true);
-                    ts.addFieldSymbol(ns);
-
-                    final String modifier = toModifierString(node.getModifiers());
-
-                    final FieldDescriptor fd = new FieldDescriptor(
-                            declaringClass,
-                            name,
-                            modifier,
-                            fqcn);
-                    ts.addMemberDescriptor(fd);
-                });
+                String fqcnAndArray = fqcn + node.getArrayBracketPairsAfterElementType().toString();
+                log.trace("field fqcn={}", fqcnAndArray);
+                final String name = declaratorId.getName();
+                final String declaringClass = ts.getFQCN();
+                final Variable ns = new Variable(
+                        declaringClass,
+                        name,
+                        declaratorId.getRange(),
+                        fqcnAndArray,
+                        true);
+                ts.addFieldSymbol(ns);
+                final String modifier = toModifierString(node.getModifiers());
+                final FieldDescriptor fd = new FieldDescriptor(
+                        declaringClass,
+                        name,
+                        modifier,
+                        fqcnAndArray);
+                ts.addMemberDescriptor(fd);
             }
         });
-        super.visit(node, source);
         log.traceExit(entryMessage);
     }
 
@@ -772,7 +747,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     @Override
     public void visit(final NameExpr node, final JavaSource source) {
 
-        final EntryMessage entryMessage = log.traceEntry("name={} range={}", node.getName(), node.getRange());
+        final EntryMessage entryMessage = log.traceEntry("NameExpr name={} range={}", node.getName(), node.getRange());
         source.getCurrentType().ifPresent(ts -> source.getCurrentBlock(ts).ifPresent(bs -> {
             final String name = node.getName();
             final Variable fieldSymbol = ts.getFieldSymbol(name);
@@ -888,51 +863,87 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         }
     }
 
-    private String toModifierString(EnumSet<com.github.javaparser.ast.Modifier> m) {
-        final AccessSpecifier accessSpecifier = com.github.javaparser.ast.Modifier.getAccessSpecifier(m);
-        return accessSpecifier.getCodeRepresenation();
-    }
-
-    private String toModifierString(final int modifier) {
+    private String toModifierString(final EnumSet<Modifier> m) {
         final StringBuilder sb = new StringBuilder();
-        if (Modifier.isPrivate(modifier)) {
+        if (m.contains(Modifier.PRIVATE)) {
             sb.append("private ");
         }
-        if (Modifier.isPublic(modifier)) {
+        if (m.contains(Modifier.PUBLIC)) {
             sb.append("public ");
         }
-        if (Modifier.isProtected(modifier)) {
+        if (m.contains(Modifier.PROTECTED)) {
             sb.append("protected ");
         }
-        if (Modifier.isStatic(modifier)) {
+        if (m.contains(Modifier.STATIC)) {
             sb.append("static ");
         }
-        if (Modifier.isAbstract(modifier)) {
+        if (m.contains(Modifier.ABSTRACT)) {
             sb.append("abstract ");
         }
-        if (Modifier.isFinal(modifier)) {
+        if (m.contains(Modifier.FINAL)) {
             sb.append("final ");
         }
-        if (Modifier.isInterface(modifier)) {
-            sb.append("interface ");
-        }
-        if (Modifier.isNative(modifier)) {
+        if (m.contains(Modifier.NATIVE)) {
             sb.append("native ");
         }
-        if (Modifier.isStrict(modifier)) {
+        if (m.contains(Modifier.STRICTFP)) {
             sb.append("strict ");
         }
-        if (Modifier.isSynchronized(modifier)) {
+        if (m.contains(Modifier.SYNCHRONIZED)) {
             sb.append("synchronized ");
         }
-        if (Modifier.isTransient(modifier)) {
+        if (m.contains(Modifier.TRANSIENT)) {
             sb.append("transient ");
         }
-        if (Modifier.isVolatile(modifier)) {
+        if (m.contains(Modifier.VOLATILE)) {
             sb.append("volatile ");
+        }
+        if (sb.length() > 0) {
+            sb.deleteCharAt(sb.length() - 1);
         }
         return sb.toString();
     }
+
+//    private String toModifierString(final int modifier) {
+//        final StringBuilder sb = new StringBuilder();
+//        if (Modifier.isPrivate(modifier)) {
+//            sb.append("private ");
+//        }
+//        if (Modifier.isPublic(modifier)) {
+//            sb.append("public ");
+//        }
+//        if (Modifier.isProtected(modifier)) {
+//            sb.append("protected ");
+//        }
+//        if (Modifier.isStatic(modifier)) {
+//            sb.append("static ");
+//        }
+//        if (Modifier.isAbstract(modifier)) {
+//            sb.append("abstract ");
+//        }
+//        if (Modifier.isFinal(modifier)) {
+//            sb.append("final ");
+//        }
+//        if (Modifier.isInterface(modifier)) {
+//            sb.append("interface ");
+//        }
+//        if (Modifier.isNative(modifier)) {
+//            sb.append("native ");
+//        }
+//        if (Modifier.isStrict(modifier)) {
+//            sb.append("strict ");
+//        }
+//        if (Modifier.isSynchronized(modifier)) {
+//            sb.append("synchronized ");
+//        }
+//        if (Modifier.isTransient(modifier)) {
+//            sb.append("transient ");
+//        }
+//        if (Modifier.isVolatile(modifier)) {
+//            sb.append("volatile ");
+//        }
+//        return sb.toString();
+//    }
 
     private String toFQCN(final String type, final JavaSource source) {
         String returnFQCN = ClassNameUtils.removeCapture(type);

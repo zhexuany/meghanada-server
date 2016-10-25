@@ -80,18 +80,18 @@ abstract class Scope {
 
     public void addNameSymbol(final Variable var) {
         this.nameSymbols.add(var);
-        log.debug("add variable scope:{} line:{} {}", this.name, var.getLine(), var);
+        log.debug("add variable line:{} {}", var.getLine(), var);
     }
 
     public MethodCallSymbol addMethodCall(final MethodCallSymbol mcs) {
         this.methodCalls.add(mcs);
-        log.debug("add methodCallSymbol scope:{} line:{} {}", this.name, mcs.getLine(), mcs);
+        log.debug("add methodCallSymbol line:{} {}", mcs.getLine(), mcs);
         return mcs;
     }
 
     public FieldAccessSymbol addFieldAccess(final FieldAccessSymbol fas) {
         this.fieldAccesses.add(fas);
-        log.debug("add fieldAccessSymbol scope:{} line:{} {}", this.name, fas.getLine(), fas);
+        log.debug("add fieldAccessSymbol line:{} {}", fas.getLine(), fas);
         return fas;
     }
 

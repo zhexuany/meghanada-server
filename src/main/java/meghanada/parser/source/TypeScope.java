@@ -43,7 +43,7 @@ public class TypeScope extends MethodScope {
 
     public void addFieldSymbol(final Variable ns) {
         this.fieldSymbols.put(ns.name, ns);
-        log.debug("add fieldSymbol name:{}, {}", this.name, ns);
+        log.debug("add fieldSymbol {}, name={}", ns, this.name);
     }
 
     public void addMemberDescriptor(MemberDescriptor memberDescriptor) {

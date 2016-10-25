@@ -5,7 +5,6 @@ import com.google.common.base.Objects;
 import meghanada.utils.ClassNameUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.message.EntryMessage;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -173,7 +172,6 @@ public class MethodDescriptor extends MemberDescriptor implements Serializable {
 
     @Override
     protected String renderTypeParameters(final String template, boolean formalType) {
-        final EntryMessage entryMessage = log.traceEntry("template={}, formalType={} typeParameterMap={} typeParameters={}", template, formalType, typeParameterMap, typeParameters);
         String temp = template;
         if (this.typeParameterMap.size() > 0) {
             for (final Map.Entry<String, String> entry : this.typeParameterMap.entrySet()) {
@@ -199,8 +197,7 @@ public class MethodDescriptor extends MemberDescriptor implements Serializable {
                 temp = TRIM_RE.matcher(temp).replaceAll("");
             }
         }
-        final String rendered = ClassNameUtils.replace(temp, ClassNameUtils.FORMAL_TYPE_VARIABLE_MARK, "").trim();
-        return log.traceExit(entryMessage, rendered);
+        return ClassNameUtils.replace(temp, ClassNameUtils.FORMAL_TYPE_VARIABLE_MARK, "").trim();
     }
 
     @Override
@@ -248,13 +245,13 @@ public class MethodDescriptor extends MemberDescriptor implements Serializable {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                .add("declaringClass", declaringClass)
                 .add("name", name)
-                .add("parameters", parameters)
                 .add("returnType", returnType)
+                .add("parameters", parameters)
+                .add("typeParameters", typeParameters)
                 .add("exceptions", exceptions)
                 .add("hasDefault", hasDefault)
-                .add("typeParameters", typeParameters)
+                .add("declaringClass", declaringClass)
                 .add("info", getDeclaration())
                 .toString();
     }

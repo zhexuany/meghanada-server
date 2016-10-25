@@ -77,11 +77,11 @@ public abstract class AccessSymbol {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                .add("declaringClass", declaringClass)
-                .add("scope", scope)
+                .add("returnType", returnType)
                 .add("name", name)
                 .add("range", range)
-                .add("returnType", returnType)
+                .add("declaringClass", declaringClass)
+                .add("scope", scope)
                 .toString();
     }
 }
