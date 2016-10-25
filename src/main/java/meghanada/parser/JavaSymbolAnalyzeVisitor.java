@@ -28,8 +28,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.leacox.motif.MatchesExact.eq;
-import static com.leacox.motif.Motif.match;
 
 class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
@@ -115,7 +113,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         log.traceEntry("EnumConstantDeclaration name={} range={}", node.getName(), node.getRange());
 
         source.getCurrentBlock().ifPresent(blockScope -> node.getArgs()
-                .forEach(expression -> this.analyzeExprClass(expression, blockScope, source)));
+                .forEach(expression -> this.getExprFQCN(expression, blockScope, source)));
         final TypeScope current = source.currentType.peek();
         final String type = current.getType();
         if (node.getClassBody().size() > 0) {
@@ -492,7 +490,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
         final Optional<FieldAccessSymbol> result = optional.flatMap(scopeExpr -> {
             final String scopeString = scopeExpr.toString();
-            return this.analyzeExprClass(scopeExpr, blockScope, source)
+            return this.getExprFQCN(scopeExpr, blockScope, source)
                     .flatMap(exprClass -> {
                         final String declaringClass = this.toFQCN(exprClass, source);
                         return this.createFieldAccessSymbol(fieldName,
@@ -550,7 +548,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final Optional<MethodCallSymbol> result = scopeExpression.flatMap(scopeExpr -> {
             final String scopeString = scopeExpr.toString();
 
-            return this.analyzeExprClass(scopeExpr, bs, src)
+            return this.getExprFQCN(scopeExpr, bs, src)
                     .flatMap(declaringClass -> {
                         final String maybeReturn = this.getReturnType(src, bs, declaringClass, methodName, args).
                                 orElse(null);
@@ -819,7 +817,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                 // lambda return
                 final Optional<Expression> expression = node.getExpr();
                 expression.ifPresent(expr -> {
-                    analyzeExprClass(expr, blockScope, source).ifPresent(fqcn -> {
+                    getExprFQCN(expr, blockScope, source).ifPresent(fqcn -> {
                         final String s = ClassNameUtils.boxing(fqcn);
                         log.trace("Lambda Block ReturnFQCN:{} Expr:{}", s, expression);
                     });
@@ -933,7 +931,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final MethodSignature methodSignature = new MethodSignature();
         final List<String> argTypes = args.stream()
                 .map(expr -> {
-                    final Optional<String> result = this.analyzeExprClass(expr, bs, src);
+                    final Optional<String> result = this.getExprFQCN(expr, bs, src);
                     return result.map(paramType -> {
                         methodSignature.parameters.add(paramType);
                         return ClassNameUtils.removeTypeParameter(paramType);
@@ -1096,161 +1094,202 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         });
     }
 
-    private Optional<String> analyzeExprClass(final Expression expr, final BlockScope bs, final JavaSource source) {
+    private Optional<String> getExprFQCN(final Expression expr, final BlockScope bs, final JavaSource source) {
         final EntryMessage entryMessage = log.traceEntry("expr={} range={}", expr.getClass().getName(), expr.getRange());
-        final Class scopeExprClass = expr.getClass();
-        final Optional<String> solved = match(scopeExprClass)
-                .when(eq(IntegerLiteralExpr.class)).get(() -> Optional.of("java.lang.Integer"))
-                .when(eq(BooleanLiteralExpr.class)).get(() -> Optional.of("java.lang.Boolean"))
-                .when(eq(LongLiteralExpr.class)).get(() -> Optional.of("java.lang.Long"))
-                .when(eq(CharLiteralExpr.class)).get(() -> Optional.of("java.lang.Character"))
-                .when(eq(ClassExpr.class)).get(() -> {
-                    final ClassExpr clsExpr = (ClassExpr) expr;
-                    final String type = clsExpr.getType().toString();
-                    final String resolvedClass = this.fqcnSolver.solveFQCN(type, source).orElse("java.lang.Class");
-                    log.trace("ClassExpr resolvedClass={}", resolvedClass);
-                    if (!resolvedClass.equals("java.lang.Class")) {
-                        return Optional.of("java.lang.Class<" + resolvedClass + ">");
-                    }
-                    return Optional.of(resolvedClass);
-                })
-                .when(eq(BinaryExpr.class)).get(() -> {
-                    final BinaryExpr x = (BinaryExpr) expr;
-                    final BinaryExpr.Operator op = x.getOperator();
-                    if (op == BinaryExpr.Operator.and
-                            || op == BinaryExpr.Operator.or
-                            || op == BinaryExpr.Operator.equals
-                            || op == BinaryExpr.Operator.notEquals
-                            || op == BinaryExpr.Operator.less
-                            || op == BinaryExpr.Operator.greater
-                            || op == BinaryExpr.Operator.lessEquals
-                            || op == BinaryExpr.Operator.greaterEquals) {
-                        return Optional.of("java.lang.Boolean");
-                    }
+        final Class clazz = expr.getClass();
 
-                    final Optional<String> left = this.analyzeExprClass(x.getLeft(), bs, source);
-                    final Optional<String> right = this.analyzeExprClass(x.getRight(), bs, source);
-                    return Optional.ofNullable(left.orElse(right.orElse(null)));
-                })
-                .when(eq(ConditionalExpr.class)).get(() -> {
-                    final ConditionalExpr x = (ConditionalExpr) expr;
-                    // eval
-                    final Optional<String> condOp = this.analyzeExprClass(x.getCondition(), bs, source);
-                    final Optional<String> thenOp = this.analyzeExprClass(x.getThenExpr(), bs, source);
-                    final Optional<String> elseOp = this.analyzeExprClass(x.getElseExpr(), bs, source);
-                    return Optional.ofNullable(thenOp.orElse(elseOp.orElse(null)));
-                })
-                .when(eq(UnaryExpr.class)).get(() -> {
-                    UnaryExpr x = (UnaryExpr) expr;
-                    return this.analyzeExprClass(x.getExpr(), bs, source);
-                })
-                .when(eq(AssignExpr.class)).get(() -> {
-                    AssignExpr x = (AssignExpr) expr;
-                    final Optional<String> targetOp = this.analyzeExprClass(x.getTarget(), bs, source);
-                    final Optional<String> valOp = this.analyzeExprClass(x.getValue(), bs, source);
-                    return Optional.ofNullable(targetOp.orElse(valOp.orElse(null)));
-                })
-                .when(eq(InstanceOfExpr.class)).get(() -> {
-                    InstanceOfExpr x = (InstanceOfExpr) expr;
-                    // eval
-                    final Optional<String> condOp = this.analyzeExprClass(x.getExpr(), bs, source);
-                    return Optional.of("java.lang.Boolean");
-                })
-                .when(eq(NameExpr.class)).get(() -> {
-                    final NameExpr x = (NameExpr) expr;
-                    final int line = x.getRange().begin.line;
-                    final Optional<String> result = this.fqcnSolver.solveSymbolFQCN(x.getName(), source, line);
-                    result.ifPresent(fqcn -> {
-                        if (!bs.containsSymbol(x.getName())) {
-                            final String parent = bs.getName();
-                            final Variable symbol = new Variable(parent,
-                                    x.getName(),
-                                    x.getRange(),
-                                    fqcn);
-                            bs.addNameSymbol(symbol);
-                        }
-                    });
-                    return result;
-                })
-                .when(eq(FieldAccessExpr.class)).get(() -> {
-                    FieldAccessExpr x = (FieldAccessExpr) expr;
-                    if (CachedASMReflector.getInstance().containsFQCN(x.toStringWithoutComments())) {
-                        return Optional.of(x.toStringWithoutComments());
-                    }
-                    return this.fieldAccess(x, source, bs).map(AccessSymbol::getReturnType);
-                })
-                .when(eq(MethodCallExpr.class)).get(() -> {
-                    MethodCallExpr x = (MethodCallExpr) expr;
-                    return this.methodCall(x, source, bs).map(AccessSymbol::getReturnType);
-                })
-                .when(eq(ThisExpr.class)).get(() -> {
-                    return source.getCurrentType().map(ts -> {
-                        final String fqcn = ts.getFQCN();
-                        source.getCurrentBlock().ifPresent(blockScope -> {
-                            final Variable v = new Variable(fqcn, "this", expr.getRange(), fqcn);
-                            blockScope.addNameSymbol(v);
-                        });
-                        return fqcn;
-                    });
-                })
-                .when(eq(SuperExpr.class)).get(() -> source.getCurrentType().flatMap(typeScope -> {
-                    if (typeScope instanceof ClassScope) {
-                        ClassScope classScope = (ClassScope) typeScope;
-                        return classScope.getExtendsClasses()
-                                .stream()
-                                .findFirst();
-                    }
-                    return Optional.of(typeScope.getFQCN());
-                }))
-                .when(eq(ObjectCreationExpr.class)).get(() -> {
-                    final ObjectCreationExpr x = (ObjectCreationExpr) expr;
-                    final String constructor = x.getType().toString();
-                    return this.fqcnSolver.solveFQCN(constructor, source);
-                })
-                .when(eq(DoubleLiteralExpr.class)).get(() -> Optional.of("java.lang.Double"))
-                .when(eq(StringLiteralExpr.class)).get(() -> Optional.of("java.lang.String"))
-                .when(eq(EnclosedExpr.class)).get(() -> {
-                    final EnclosedExpr x = (EnclosedExpr) expr;
-                    return x.getInner().flatMap(eExpr -> this.analyzeExprClass(eExpr, bs, source));
-                })
-                .when(eq(CastExpr.class)).get(() -> {
-                    final CastExpr x = (CastExpr) expr;
-                    return this.fqcnSolver.solveFQCN(x.getType().toString(), source);
-                })
-                .when(eq(ArrayAccessExpr.class)).get(() -> {
-                    final ArrayAccessExpr x = (ArrayAccessExpr) expr;
-                    return this.analyzeExprClass(x.getName(), bs, source);
-                })
-                .when(eq(ArrayCreationExpr.class)).get(() -> {
-                    ArrayCreationExpr x = (ArrayCreationExpr) expr;
-                    return this.fqcnSolver.solveFQCN(x.getType().toString(), source);
-                })
-                .when(eq(TypeExpr.class)).get(() -> {
-                    TypeExpr x = (TypeExpr) expr;
-                    return this.fqcnSolver.solveFQCN(x.getType().toString(), source);
-                })
-                .when(eq(NullLiteralExpr.class)).get(Optional::empty)
-                .when(eq(MethodReferenceExpr.class)).get(() -> {
-                    // TODO
-                    MethodReferenceExpr x = (MethodReferenceExpr) expr;
-                    final String methodName = x.getIdentifier();
-                    final Expression scope = x.getScope();
-                    final Optional<String> scopeFqcn = this.analyzeExprClass(scope, bs, source);
-                    log.warn("UnsupportedExpr {} Source:{} Range:{}", x.getClass().getName(), source.getFile(), expr.getRange());
-                    return Optional.empty();
+        Optional<String> solved = null;
+        if (clazz.equals(IntegerLiteralExpr.class)) {
 
-                })
-                .when(eq(LambdaExpr.class)).get(() -> {
-                    final LambdaExpr x = (LambdaExpr) expr;
-                    final NodeList<Parameter> parameters = x.getParameters();
-                    log.warn("UnsupportedExpr {} Source:{} Range:{}", x.getClass().getName(), source.getFile(), expr.getRange());
-                    return Optional.empty();
-                })
-                .orElse(x -> {
-                    log.warn("UnsupportedExpr {}, {} Source:{} Range:{}", x, expr, source.getFile(), expr.getRange());
-                    return Optional.empty();
-                })
-                .getMatch();
+            solved = Optional.of("java.lang.Integer");
+
+        } else if (clazz.equals(BooleanLiteralExpr.class)) {
+
+            solved = Optional.of("java.lang.Boolean");
+
+        } else if (clazz.equals(LongLiteralExpr.class)) {
+
+            solved = Optional.of("java.lang.Long");
+
+        } else if (clazz.equals(CharLiteralExpr.class)) {
+
+            solved = Optional.of("java.lang.Character");
+
+        } else if (clazz.equals(ClassExpr.class)) {
+            final ClassExpr clsExpr = (ClassExpr) expr;
+            final String type = clsExpr.getType().toString();
+            final String resolvedClass = this.fqcnSolver.solveFQCN(type, source).orElse("java.lang.Class");
+            log.trace("ClassExpr resolvedClass={}", resolvedClass);
+            if (!resolvedClass.equals("java.lang.Class")) {
+                return Optional.of("java.lang.Class<" + resolvedClass + ">");
+            }
+            solved = Optional.of(resolvedClass);
+
+        } else if (clazz.equals(BinaryExpr.class)) {
+
+            final BinaryExpr x = (BinaryExpr) expr;
+            final BinaryExpr.Operator op = x.getOperator();
+            if (op == BinaryExpr.Operator.and
+                    || op == BinaryExpr.Operator.or
+                    || op == BinaryExpr.Operator.equals
+                    || op == BinaryExpr.Operator.notEquals
+                    || op == BinaryExpr.Operator.less
+                    || op == BinaryExpr.Operator.greater
+                    || op == BinaryExpr.Operator.lessEquals
+                    || op == BinaryExpr.Operator.greaterEquals) {
+                return Optional.of("java.lang.Boolean");
+            }
+
+            final Optional<String> left = this.getExprFQCN(x.getLeft(), bs, source);
+            final Optional<String> right = this.getExprFQCN(x.getRight(), bs, source);
+            solved = Optional.ofNullable(left.orElse(right.orElse(null)));
+
+        } else if (clazz.equals(ConditionalExpr.class)) {
+
+            final ConditionalExpr x = (ConditionalExpr) expr;
+            // eval
+            final Optional<String> condOp = this.getExprFQCN(x.getCondition(), bs, source);
+            final Optional<String> thenOp = this.getExprFQCN(x.getThenExpr(), bs, source);
+            final Optional<String> elseOp = this.getExprFQCN(x.getElseExpr(), bs, source);
+            solved = Optional.ofNullable(thenOp.orElse(elseOp.orElse(null)));
+
+        } else if (clazz.equals(UnaryExpr.class)) {
+
+            UnaryExpr x = (UnaryExpr) expr;
+            solved = this.getExprFQCN(x.getExpr(), bs, source);
+
+        } else if (clazz.equals(AssignExpr.class)) {
+
+            AssignExpr x = (AssignExpr) expr;
+            final Optional<String> targetOp = this.getExprFQCN(x.getTarget(), bs, source);
+            final Optional<String> valOp = this.getExprFQCN(x.getValue(), bs, source);
+            solved = Optional.ofNullable(targetOp.orElse(valOp.orElse(null)));
+
+        } else if (clazz.equals(InstanceOfExpr.class)) {
+
+            InstanceOfExpr x = (InstanceOfExpr) expr;
+            // eval
+            final Optional<String> condOp = this.getExprFQCN(x.getExpr(), bs, source);
+            solved = Optional.of("java.lang.Boolean");
+
+        } else if (clazz.equals(NameExpr.class)) {
+
+            final NameExpr x = (NameExpr) expr;
+            final int line = x.getRange().begin.line;
+            final Optional<String> result = this.fqcnSolver.solveSymbolFQCN(x.getName(), source, line);
+            result.ifPresent(fqcn -> {
+                if (!bs.containsSymbol(x.getName())) {
+                    final String parent = bs.getName();
+                    final Variable symbol = new Variable(parent,
+                            x.getName(),
+                            x.getRange(),
+                            fqcn);
+                    bs.addNameSymbol(symbol);
+                }
+            });
+            solved = result;
+
+        } else if (clazz.equals(FieldAccessExpr.class)) {
+
+            FieldAccessExpr x = (FieldAccessExpr) expr;
+            if (CachedASMReflector.getInstance().containsFQCN(x.toStringWithoutComments())) {
+                return Optional.of(x.toStringWithoutComments());
+            }
+            return this.fieldAccess(x, source, bs).map(AccessSymbol::getReturnType);
+
+        } else if (clazz.equals(MethodCallExpr.class)) {
+
+            MethodCallExpr x = (MethodCallExpr) expr;
+            return this.methodCall(x, source, bs).map(AccessSymbol::getReturnType);
+
+        } else if (clazz.equals(ThisExpr.class)) {
+
+            solved = source.getCurrentType().map(ts -> {
+                final String fqcn = ts.getFQCN();
+                source.getCurrentBlock().ifPresent(blockScope -> {
+                    final Variable v = new Variable(fqcn, "this", expr.getRange(), fqcn);
+                    blockScope.addNameSymbol(v);
+                });
+                return fqcn;
+            });
+
+        } else if (clazz.equals(MethodCallExpr.class)) {
+
+            MethodCallExpr x = (MethodCallExpr) expr;
+            return this.methodCall(x, source, bs).map(AccessSymbol::getReturnType);
+
+        } else if (clazz.equals(SuperExpr.class)) {
+
+            solved = source.getCurrentType().flatMap(typeScope -> {
+                if (typeScope instanceof ClassScope) {
+                    ClassScope classScope = (ClassScope) typeScope;
+                    return classScope.getExtendsClasses()
+                            .stream()
+                            .findFirst();
+                }
+                return Optional.of(typeScope.getFQCN());
+            });
+
+        } else if (clazz.equals(ObjectCreationExpr.class)) {
+
+            final ObjectCreationExpr x = (ObjectCreationExpr) expr;
+            final String constructor = x.getType().toString();
+            return this.fqcnSolver.solveFQCN(constructor, source);
+
+        } else if (clazz.equals(DoubleLiteralExpr.class)) {
+
+            solved = Optional.of("java.lang.Double");
+
+        } else if (clazz.equals(StringLiteralExpr.class)) {
+
+            solved = Optional.of("java.lang.String");
+
+        } else if (clazz.equals(EnclosedExpr.class)) {
+
+            final EnclosedExpr x = (EnclosedExpr) expr;
+            solved = x.getInner().flatMap(eExpr -> this.getExprFQCN(eExpr, bs, source));
+
+        } else if (clazz.equals(CastExpr.class)) {
+
+            final CastExpr x = (CastExpr) expr;
+            solved = this.fqcnSolver.solveFQCN(x.getType().toString(), source);
+
+        } else if (clazz.equals(ArrayAccessExpr.class)) {
+
+            final ArrayAccessExpr x = (ArrayAccessExpr) expr;
+            solved = this.getExprFQCN(x.getName(), bs, source);
+
+        } else if (clazz.equals(ArrayCreationExpr.class)) {
+
+            ArrayCreationExpr x = (ArrayCreationExpr) expr;
+            return this.fqcnSolver.solveFQCN(x.getType().toString(), source);
+
+        } else if (clazz.equals(TypeExpr.class)) {
+
+            TypeExpr x = (TypeExpr) expr;
+            solved = this.fqcnSolver.solveFQCN(x.getType().toString(), source);
+
+        } else if (clazz.equals(NullLiteralExpr.class)) {
+
+            return Optional.empty();
+
+        } else if (clazz.equals(MethodReferenceExpr.class)) {
+            MethodReferenceExpr x = (MethodReferenceExpr) expr;
+            final String methodName = x.getIdentifier();
+            final Expression scope = x.getScope();
+            final Optional<String> scopeFqcn = this.getExprFQCN(scope, bs, source);
+            log.warn("UnsupportedExpr {} Source:{} Range:{}", x.getClass().getName(), source.getFile(), expr.getRange());
+            solved = Optional.empty();
+        } else if (clazz.equals(LambdaExpr.class)) {
+
+            final LambdaExpr x = (LambdaExpr) expr;
+            final NodeList<Parameter> parameters = x.getParameters();
+            log.warn("UnsupportedExpr {} Source:{} Range:{}", x.getClass().getName(), source.getFile(), expr.getRange());
+            solved = Optional.empty();
+        } else {
+            log.warn("UnsupportedExpr {} Source:{} Range:{}", expr, source.getFile(), expr.getRange());
+            solved = Optional.empty();
+        }
 
         return log.traceExit(entryMessage, solved);
     }

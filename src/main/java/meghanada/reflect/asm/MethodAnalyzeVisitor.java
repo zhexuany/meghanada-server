@@ -194,7 +194,7 @@ class MethodAnalyzeVisitor extends MethodVisitor {
         if (((this.parameterTypes.size() != this.parameterNames.length)
                 || (this.parameterNames.length > 0 && this.parameterNames[0] == null))
                 && !tryGetParameterName(this.classAnalyzeVisitor.className, this.name)) {
-                setDefaultParameterNames();
+            setDefaultParameterNames();
         }
 
         for (int i = 0; i < this.parameterTypes.size(); i++) {
