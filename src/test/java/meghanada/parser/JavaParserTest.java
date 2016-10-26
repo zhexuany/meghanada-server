@@ -1061,7 +1061,7 @@ public class JavaParserTest extends GradleTestBase {
         List<MemberDescriptor> result1 = typeScope1.getMemberDescriptors();
         String type1 = typeScope1.getType();
         assertEquals("GenericMethodCall2", type1);
-        assertEquals(1, result1.size());
+        assertEquals(2, result1.size());
     }
 
 }

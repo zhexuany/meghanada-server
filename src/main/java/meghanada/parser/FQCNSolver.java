@@ -32,7 +32,6 @@ class FQCNSolver {
     private FQCNSolver(Map<String, String> globalClassSymbol) {
         this.globalClassSymbol = globalClassSymbol;
         this.searchFunctions = this.getSearchFunctions();
-
     }
 
     public static FQCNSolver getInstance() {
@@ -239,34 +238,32 @@ class FQCNSolver {
             return log.traceExit(entryMessage, result);
         }
 
-        // 3. solve from globals (java.lang.*)
+        // 3. solve from package scope
+        final Optional<String> pkgClass = source
+                .getCurrentType()
+                .flatMap(typeScope -> {
+                    String s = searchName;
+                    final String typeScopePackage = typeScope.getPackage();
+                    if (typeScopePackage != null) {
+                        s = typeScopePackage + '.' + searchName;
+                    }
+                    return reflector
+                            .containsClassIndex(s)
+                            .map(c -> className.replaceClassName(c.getDeclaration()));
+                });
+
+        if (pkgClass.isPresent()) {
+            log.trace("solved package scope class name={} result={}", searchName, pkgClass);
+            return log.traceExit(entryMessage, pkgClass);
+        }
+
+        // 4. solve from globals (java.lang.*)
         fqcn = this.globalClassSymbol.get(searchName);
         if (fqcn != null) {
             final Optional<String> result = Optional.ofNullable(className.replaceClassName(fqcn));
             log.trace("solved default package name={} result={}", searchName, result);
             return log.traceExit(entryMessage, result);
         }
-
-        // 4. solve from package scope
-        final Optional<String> packageResult = source.getCurrentType().map(typeScope -> {
-            String s = searchName;
-            final String typeScopePackage = typeScope.getPackage();
-
-            if (typeScopePackage != null) {
-                s = typeScopePackage + '.' + searchName;
-            }
-
-            final String result = reflector.containsClassIndex(s)
-                    .map(classIndex -> className.replaceClassName(classIndex.getDeclaration()))
-                    .orElse(null);
-            return result;
-        });
-
-        if (packageResult.isPresent()) {
-            log.trace("solved package or global scope class name={} result={}", searchName, packageResult);
-            return log.traceExit(entryMessage, packageResult);
-        }
-
 
         // 5. solve current source
         fqcn = source.getCurrentType().map(ts -> {
