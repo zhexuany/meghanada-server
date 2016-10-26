@@ -248,15 +248,15 @@ public class ClassNameUtils {
         return name;
     }
 
-    public static List<String> parseTypeParameter(final String str) {
-        if (str == null || str.isEmpty()) {
+    public static List<String> parseTypeParameter(final String className) {
+        if (className == null || className.isEmpty()) {
             return Collections.emptyList();
         }
         List<String> result = new ArrayList<>(4);
 
-        final int idx = str.indexOf("<");
+        final int idx = className.indexOf("<");
         if (idx >= 0) {
-            String gen = str.substring(idx + 1, str.length() - 1);
+            String gen = className.substring(idx + 1, className.length() - 1);
             int indent = 0;
             StringBuilder sb = new StringBuilder(16);
             boolean wild = false;

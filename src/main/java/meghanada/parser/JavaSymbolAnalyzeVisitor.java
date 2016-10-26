@@ -19,6 +19,7 @@ import com.google.common.base.Splitter;
 import meghanada.parser.source.*;
 import meghanada.reflect.*;
 import meghanada.reflect.asm.CachedASMReflector;
+import meghanada.utils.ClassName;
 import meghanada.utils.ClassNameUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -616,7 +617,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                     return symbol;
                 });
         if (!fas2.isPresent()) {
-            log.warn("MISSING ReturnType:{} File:{}", symbol, source.getFile());
+            log.warn("MISSING ReturnType:{} :{}", symbol, source.getFile());
         }
         return log.traceExit(entryMessage, fas2);
     }
@@ -924,6 +925,24 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         }
 
         return this.fqcnSolver.solveFQCN(returnFQCN, source).orElse(returnFQCN);
+    }
+
+    private String toFQCN(final String type, final String defaultClass, final JavaSource source) {
+        String returnFQCN = ClassNameUtils.removeCapture(type);
+
+        final Optional<TypeScope> currentType = source.getCurrentType();
+        if (currentType.isPresent()) {
+            final TypeScope typeScope = currentType.get();
+            if (typeScope instanceof ClassScope) {
+                final ClassScope classScope = (ClassScope) typeScope;
+                final Map<String, String> map = classScope.getTypeParameterMap();
+                if (map.containsKey(returnFQCN)) {
+                    returnFQCN = ClassNameUtils.removeCapture(map.get(returnFQCN));
+                }
+            }
+        }
+
+        return this.fqcnSolver.solveFQCN(returnFQCN, source).orElse(defaultClass);
     }
 
     Optional<MethodSignature> getMethodSignature(final JavaSource src, final BlockScope bs, final String methodName, final NodeList<Expression> args) {
@@ -1281,13 +1300,13 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             final String methodName = x.getIdentifier();
             final Expression scope = x.getScope();
             final Optional<String> scopeFqcn = this.getExprFQCN(scope, bs, source);
-            log.warn("UnsupportedExpr {} Source:{} Range:{}", x.getClass().getName(), source.getFile(), expr.getRange());
+            // log.warn("MethodReference not support. source:{} range:{}", source.getFile(), expr.getRange());
             solved = Optional.empty();
         } else if (clazz.equals(LambdaExpr.class)) {
 
             final LambdaExpr x = (LambdaExpr) expr;
             final NodeList<Parameter> parameters = x.getParameters();
-            log.warn("UnsupportedExpr {} Source:{} Range:{}", x.getClass().getName(), source.getFile(), expr.getRange());
+            // log.warn("Lambda not support. source:{} range:{}", source.getFile(), expr.getRange());
             solved = Optional.empty();
         } else {
             log.warn("UnsupportedExpr {} Source:{} Range:{}", expr, source.getFile(), expr.getRange());
@@ -1405,23 +1424,16 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                 final Optional<String> optional = Optional.of(declaringClass);
                 return log.traceExit(entryMessage, optional);
             }
+            if (!isField && name.equals("getClass")) {
+                final ClassName className = new ClassName(declaringClass);
+                final String fqcn = className.replaceClassName(this.toFQCN(className.getName(),
+                        ClassNameUtils.OBJECT_CLASS,
+                        source));
+                final Optional<String> optional = Optional.of("java.lang.Class<? extends " + fqcn + ">");
+                return log.traceExit(entryMessage, optional);
+            }
         }
 
-//        File classFile = reflector.getClassFile(ClassNameUtils.removeTypeAndArray(declaringClass));
-//        if (classFile == null) {
-//            // try inner class
-//            final Optional<String> res = ClassNameUtils.toInnerClassName(declaringClass);
-//            if (res.isPresent()) {
-//                declaringClass = res.orElse(declaringClass);
-//            }
-//            log.trace("@declaringClass={}", declaringClass);
-//            classFile = reflector.getClassFile(ClassNameUtils.removeTypeAndArray(declaringClass));
-//            if (classFile == null) {
-//                log.debug("getReturnFromReflect classFile null className:{} declaringClass:{}", className, declaringClass);
-//                final Optional<String> empty = Optional.empty();
-//                return log.traceExit(entryMessage, empty);
-//            }
-//        }
         final Optional<CachedASMReflector.ProjectClassInfo> res = reflector.toExistInnerClassName(declaringClass);
         if (!res.isPresent()) {
             final Optional<String> empty = Optional.empty();
@@ -1431,11 +1443,12 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final String declaringClass2 = classInfo.className;
 
         boolean onlyPublic = !isLocal && classInfo.classFile.getName().endsWith("jar");
-
+        log.trace("@declaringClass2={}", declaringClass2);
         final String result = reflector.reflectStream(declaringClass2)
                 .filter(md -> this.returnTypeFilter(name, isField, onlyPublic, md))
                 .map(md -> {
                     if (isField) {
+                        log.trace("@md={}", md);
                         return md.getRawReturnType();
                     }
                     MethodDescriptor method = (MethodDescriptor) md;

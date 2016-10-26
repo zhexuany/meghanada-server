@@ -207,7 +207,8 @@ class FQCNSolver {
         if (searchName.contains(".")) {
             final Optional<ClassIndex> classIndex = reflector.containsClassIndex(searchName);
             if (classIndex.isPresent()) {
-                final Optional<String> result = Optional.of(className.replaceClassName(classIndex.get().getDeclaration()));
+                // final Optional<String> result = Optional.of(className.replaceClassName(classIndex.get().getDeclaration()));
+                final Optional<String> result = Optional.of(className.replaceClassName(classIndex.get().getRawDeclaration()));
                 log.trace("solved fqcn className={} result={}", searchName, result);
                 return log.traceExit(entryMessage, result);
             }

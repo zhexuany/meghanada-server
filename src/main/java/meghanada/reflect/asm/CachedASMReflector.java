@@ -306,11 +306,21 @@ public class CachedASMReflector {
         return members;
     }
 
-    private List<MemberDescriptor> replaceMembers(final String classWithoutTP, final String className, final List<MemberDescriptor> members) {
+    private List<MemberDescriptor> replaceMembers(final String simpleClassName, final String className, final List<MemberDescriptor> members) {
 
-        final ClassIndex classIdx = this.globalClassIndex.get(classWithoutTP);
-        if (classIdx != null) {
-            return replaceTypeParameters(className, classIdx.getDisplayDeclaration(), members);
+        final ClassIndex ci = this.globalClassIndex.get(simpleClassName);
+        if (ci != null) {
+            log.trace("@class={} return={}", className, ci.getReturnType());
+            String type = ci.getReturnType();
+            final int i = type.lastIndexOf(ClassNameUtils.INNER_MARK);
+            if (i > 0) {
+                String tmp = type.substring(0, i);
+
+                final ClassIndex parent = this.globalClassIndex.get(tmp);
+                type = parent.getDisplayDeclaration() + ClassNameUtils.INNER_MARK + type.substring(i + 1);
+                log.trace("@type={}", type);
+            }
+            return replaceTypeParameters(className, type, members);
         }
         return members;
     }
@@ -318,9 +328,10 @@ public class CachedASMReflector {
     private List<MemberDescriptor> replaceTypeParameters(final String className, final String classWithTP, final List<MemberDescriptor> members) {
         final int idx1 = classWithTP.indexOf("<");
         if (idx1 >= 0) {
+            // TODO inner clazz
             final List<String> types = ClassNameUtils.parseTypeParameter(classWithTP);
             final List<String> realTypes = ClassNameUtils.parseTypeParameter(className);
-            // log.warn("className {} types {} realTypes {}", className, types, realTypes);
+            log.trace("@classWithTP={} className={} types {} realTypes {}", classWithTP, className, types, realTypes);
             for (final MemberDescriptor md : members) {
                 if (md.hasTypeParameters()) {
                     md.clearTypeParameterMap();

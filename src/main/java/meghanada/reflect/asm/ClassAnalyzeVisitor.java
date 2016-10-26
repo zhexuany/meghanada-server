@@ -58,7 +58,6 @@ class ClassAnalyzeVisitor extends ClassVisitor {
             final SignatureReader signatureReader = new SignatureReader(signature);
             ClassSignatureVisitor classSignatureVisitor = new ClassSignatureVisitor(this.className, isInterface);
             signatureReader.accept(classSignatureVisitor);
-
             this.classTypeParameters = classSignatureVisitor.getTypeParameters();
             this.classIndex = classSignatureVisitor.getClassIndex();
             if (!this.classIndex.supers.contains(ClassNameUtils.OBJECT_CLASS)) {

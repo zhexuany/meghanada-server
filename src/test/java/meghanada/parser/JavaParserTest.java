@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import static meghanada.config.Config.timeIt;
+import static meghanada.config.Config.traceIt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -240,7 +241,7 @@ public class JavaParserTest extends GradleTestBase {
         List<MemberDescriptor> result2 = typeScope2.getMemberDescriptors();
         String type2 = typeScope2.getFQCN();
         assertEquals("meghanada.parser.JavaSymbolAnalyzeVisitor", type2);
-        assertEquals(51, result2.size());
+        assertEquals(52, result2.size());
 
     }
 
@@ -613,7 +614,7 @@ public class JavaParserTest extends GradleTestBase {
 
     @Test
     public void testParseClass33() throws Exception {//
-        JavaSource source = timeIt(() -> {
+        JavaSource source = traceIt(() -> {
             JavaParser javaParser = new JavaParser();
             return javaParser.parse(new File("./src/test/java/meghanada/Gen9.java"));
         });
@@ -660,11 +661,17 @@ public class JavaParserTest extends GradleTestBase {
             return javaParser.parse(new File("./src/test/java/meghanada/SelfRef1.java"));
         });
         assertNotNull(source);
-        TypeScope typeScope = source.getTypeScopes().get(0);
-        List<MemberDescriptor> result = typeScope.getMemberDescriptors();
-        String type = typeScope.getFQCN();
-        assertEquals("meghanada.SelfRef1$Ref", type);
-        assertEquals(3, result.size());
+        TypeScope typeScope1 = source.getTypeScopes().get(0);
+        List<MemberDescriptor> result1 = typeScope1.getMemberDescriptors();
+        String type1 = typeScope1.getFQCN();
+        assertEquals("meghanada.SelfRef1$Ref", type1);
+        assertEquals(3, result1.size());
+
+        TypeScope typeScope2 = source.getTypeScopes().get(1);
+        List<MemberDescriptor> result2 = typeScope2.getMemberDescriptors();
+        String type2 = typeScope2.getFQCN();
+        assertEquals("meghanada.SelfRef1", type2);
+        assertEquals(1, result2.size());
     }
 
     @Test
@@ -1056,7 +1063,7 @@ public class JavaParserTest extends GradleTestBase {
         List<MemberDescriptor> result1 = typeScope1.getMemberDescriptors();
         String type1 = typeScope1.getType();
         assertEquals("GenericMethod1", type1);
-        assertEquals(4, result1.size());
+        assertEquals(5, result1.size());
         source.getAllMember().forEach(memberDescriptor -> {
             System.out.println(memberDescriptor);
         });

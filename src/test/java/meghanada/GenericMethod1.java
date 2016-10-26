@@ -6,6 +6,13 @@ import java.util.List;
 
 public class GenericMethod1<T> {
 
+    public <X> X[] toArray(X[] a) {
+        if (a.length < 0) {
+            final Class<? extends Object[]> aClass = a.getClass();
+        }
+        return a;
+    }
+
     public T toString(T str) throws NullPointerException {
         return str;
     }

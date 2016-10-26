@@ -61,7 +61,7 @@ public class ClassIndex implements CandidateUnit, Serializable, Cloneable {
 
     @Override
     public String getDisplayDeclaration() {
-        StringBuilder sb = new StringBuilder(ClassNameUtils.replaceInnerMark(this.declaration));
+        final StringBuilder sb = new StringBuilder(ClassNameUtils.replaceInnerMark(this.declaration));
         if (this.typeParameters != null && this.typeParameters.size() > 0) {
             sb.append('<');
             Joiner.on(", ").appendTo(sb, this.typeParameters).append('>');

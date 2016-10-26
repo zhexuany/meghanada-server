@@ -78,7 +78,7 @@ public abstract class AccessSymbol {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                 .add("returnType", returnType)
-                .add("className", name)
+                .add("name", name)
                 .add("range", range)
                 .add("declaringClass", declaringClass)
                 .add("scope", scope)

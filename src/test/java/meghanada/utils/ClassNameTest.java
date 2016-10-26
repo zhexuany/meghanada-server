@@ -3,6 +3,8 @@ package meghanada.utils;
 import meghanada.GradleTestBase;
 import org.junit.Test;
 
+import static meghanada.config.Config.timeIt;
+import static meghanada.config.Config.traceIt;
 import static org.junit.Assert.assertEquals;
 
 public class ClassNameTest extends GradleTestBase {
@@ -15,23 +17,39 @@ public class ClassNameTest extends GradleTestBase {
 
     @Test
     public void getName1() throws Exception {
-        ClassName className = new ClassName("Map.Entry<String, Long>");
-        String name = className.getName();
-        assertEquals("Map.Entry", name);
+        ClassName className1 = new ClassName("Map.Entry<String, Long>");
+        String name1 = className1.getName();
+        assertEquals("Map.Entry", name1);
+
+        ClassName className2 = new ClassName("Map$Entry<String, Long>");
+        String name2 = className2.getName();
+        assertEquals("Map$Entry", name2);
+
+        ClassName className3 = new ClassName("Map<String, Long>$Entry<String, Long>");
+        String name3 = timeIt(() -> className3.getName());
+        assertEquals("Map$Entry", name3);
     }
 
     @Test
     public void getName2() throws Exception {
-        ClassName className = new ClassName("Map.Entry<String, Long>[]");
-        String name = className.getName();
-        assertEquals("Map.Entry", name);
+        ClassName className1 = new ClassName("Map.Entry<String, Long>[]");
+        String name1 = className1.getName();
+        assertEquals("Map.Entry", name1);
+
+        ClassName className2 = new ClassName("Map$Entry<String, Long>[]");
+        String name2 = className2.getName();
+        assertEquals("Map$Entry", name2);
     }
 
     @Test
     public void getName3() throws Exception {
-        ClassName className = new ClassName("Map<K, V>.Entry");
-        String name = className.getName();
-        assertEquals("Map.Entry", name);
+        ClassName className1 = new ClassName("Map<K, V>.Entry");
+        String name1 = className1.getName();
+        assertEquals("Map.Entry", name1);
+
+        ClassName className2 = new ClassName("Map<K, V>$Entry");
+        String name2 = className2.getName();
+        assertEquals("Map$Entry", name2);
     }
 
     @Test
@@ -49,31 +67,74 @@ public class ClassNameTest extends GradleTestBase {
     }
 
     @Test
-    public void addTypeParameters1() throws Exception {
+    public void getName6() throws Exception {
+        ClassName className = new ClassName("meghanada.Gen9<K, V>$A");
+        String name = className.getName();
+        final String replaceClassName = className.replaceClassName("meghanada.Gen9<K, V>$A");
+        assertEquals("meghanada.Gen9$A", name);
+    }
+
+    @Test
+    public void replaceClassName1() throws Exception {
         ClassName className = new ClassName("Map.Entry");
         String name = className.replaceClassName("java.util.Map.Entry");
         assertEquals("java.util.Map.Entry", name);
     }
 
     @Test
-    public void addTypeParameters2() throws Exception {
-        ClassName className = new ClassName("Map.Entry<String, Long>");
-        String name = className.replaceClassName("java.util.Map.Entry");
-        assertEquals("java.util.Map.Entry<String, Long>", name);
+    public void replaceClassName2() throws Exception {
+        ClassName className1 = new ClassName("Map.Entry<String, Long>");
+        String name1 = className1.replaceClassName("java.util.Map.Entry");
+        assertEquals("java.util.Map.Entry<String, Long>", name1);
+
+        ClassName className2 = new ClassName("Map$Entry<String, Long>");
+        String name2 = traceIt(() -> className2.replaceClassName("java.util.Map$Entry"));
+        assertEquals("java.util.Map$Entry<String, Long>", name2);
     }
 
     @Test
-    public void addTypeParameters3() throws Exception {
-        ClassName className = new ClassName("Map.Entry<String, Long>[]");
-        String name = className.replaceClassName("java.util.Map.Entry");
-        assertEquals("java.util.Map.Entry<String, Long>[]", name);
+    public void replaceClassName3() throws Exception {
+        ClassName className1 = new ClassName("Map.Entry<String, Long>[]");
+        String name1 = className1.replaceClassName("java.util.Map.Entry");
+        assertEquals("java.util.Map.Entry<String, Long>[]", name1);
+
+        ClassName className2 = new ClassName("Map$Entry<String, Long>[]");
+        String name2 = className2.replaceClassName("java.util.Map$Entry");
+        assertEquals("java.util.Map$Entry<String, Long>[]", name2);
     }
 
     @Test
-    public void addTypeParameters4() throws Exception {
+    public void replaceClassName4() throws Exception {
         ClassName className = new ClassName("Map.Entry[]");
         String name = className.replaceClassName("java.util.Map.Entry");
         assertEquals("java.util.Map.Entry[]", name);
+    }
+
+    @Test
+    public void replaceClassName5() throws Exception {
+        ClassName className = new ClassName("SelfRef1<java.lang.Object>$Ref");
+        final String simpleName = className.getName();
+        assertEquals("SelfRef1$Ref", simpleName);
+        String replaced = className.replaceClassName("meghanada." + simpleName);
+        assertEquals("meghanada.SelfRef1<java.lang.Object>$Ref", replaced);
+    }
+
+    @Test
+    public void replaceClassName6() throws Exception {
+        ClassName className = new ClassName("A<java.lang.Object>$B<java.lang.String>");
+        final String simpleName = className.getName();
+        assertEquals("A$B", simpleName);
+        String replaced = className.replaceClassName("meghanada." + simpleName);
+        assertEquals("meghanada.A<java.lang.Object>$B<java.lang.String>", replaced);
+    }
+
+    @Test
+    public void replaceClassName7() throws Exception {
+        ClassName className = new ClassName("A$B<java.lang.String>");
+        final String simpleName = className.getName();
+        assertEquals("A$B", simpleName);
+        String replaced = className.replaceClassName("meghanada." + simpleName);
+        assertEquals("meghanada.A$B<java.lang.String>", replaced);
     }
 
     @Test

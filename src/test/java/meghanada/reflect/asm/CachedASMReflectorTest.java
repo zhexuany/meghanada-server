@@ -18,8 +18,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static meghanada.config.Config.timeIt;
+import static meghanada.config.Config.traceIt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -355,7 +357,7 @@ public class CachedASMReflectorTest extends GradleTestBase {
         memberDescriptors.forEach(m -> {
             System.out.println(m.getDeclaration());
         });
-        assertEquals(16, memberDescriptors.size());
+        assertEquals(17, memberDescriptors.size());
     }
 
     @Test
@@ -525,6 +527,24 @@ public class CachedASMReflectorTest extends GradleTestBase {
         assertEquals(true, innerName.isPresent());
         System.out.println(innerName);
         assertEquals("meghanada.GenericInnerClass2$ABC$DEF", innerName.get().className);
+    }
+
+    @Test
+    public void testReflectInnerClass1() throws Exception {
+        CachedASMReflector reflector = CachedASMReflector.getInstance();
+        reflector.addClasspath(getOutputDir());
+        reflector.addClasspath(getTestOutputDir());
+        reflector.createClassIndexes();
+        reflector.createClassIndexes();
+
+        final String name = "meghanada.Gen9<String, Long>$A<String, Long>";
+        final List<MemberDescriptor> collect = traceIt(() -> reflector.reflectStream(name)
+                .filter(md -> md.getType().equals("FIELD"))
+                .collect(Collectors.toList()));
+        collect.forEach(md -> {
+            System.out.println(md.getReturnType());
+            System.out.println(md.getRawReturnType());
+        });
     }
 
 }
