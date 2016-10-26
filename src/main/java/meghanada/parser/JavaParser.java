@@ -24,7 +24,7 @@ public class JavaParser implements SourceParser {
     @Override
     public JavaSource parse(final File file) throws IOException, ParseException {
         if (!JavaSource.isJavaFile(file)) {
-            throw new IllegalArgumentException("Support only java file");
+            throw new IllegalArgumentException("Support only java classFile");
         }
         final CompilationUnit cu = com.github.javaparser.JavaParser.parse(file, Charset.forName("UTF-8"));
         final File src = file.getCanonicalFile();

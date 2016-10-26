@@ -24,7 +24,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.EntryMessage;
 
-import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -42,7 +41,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     @Override
     public void visit(final PackageDeclaration node, final JavaSource source) {
-        final EntryMessage entryMessage = log.traceEntry("PackageDeclaration name={}", node.getName(), node.getRange());
+        final EntryMessage entryMessage = log.traceEntry("PackageDeclaration className={}", node.getName(), node.getRange());
         source.pkg = node.getName().toString();
         log.traceExit(entryMessage);
     }
@@ -61,14 +60,14 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final ClassOrInterfaceType type = node.getType();
         final String fqcn = type.toString();
         final String name = ClassNameUtils.getSimpleName(type.getName());
-        log.debug("add import name={} fqcn={}", name, fqcn);
+        log.debug("add import className={} fqcn={}", name, fqcn);
         source.importClass.putIfAbsent(name, fqcn);
         CachedASMReflector.getInstance()
                 .searchInnerClasses(fqcn)
                 .forEach(classIndex -> {
                     final String innerName = ClassNameUtils.replaceInnerMark(classIndex.getName());
                     final String innerFqcn = classIndex.getRawDeclaration();
-                    log.trace("add import name={} fqcn={}", innerName, innerFqcn);
+                    log.trace("add import className={} fqcn={}", innerName, innerFqcn);
                     source.importClass.putIfAbsent(innerName, innerFqcn);
                 });
         source.addUnusedClass(name, fqcn);
@@ -94,13 +93,13 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         for (final Map.Entry<String, String> entry : symbols.entrySet()) {
             final String key = ClassNameUtils.replaceInnerMark(entry.getKey());
             final String val = entry.getValue();
-            log.trace("add import name={} fqcn={}", key, val);
+            log.trace("add import className={} fqcn={}", key, val);
             source.importClass.putIfAbsent(key, val);
             reflector.searchInnerClasses(val)
                     .forEach(classIndex -> {
                         final String name1 = ClassNameUtils.replaceInnerMark(classIndex.getName());
                         final String fqcn1 = classIndex.getRawDeclaration();
-                        log.trace("add import name={} fqcn={}", name1, fqcn1);
+                        log.trace("add import className={} fqcn={}", name1, fqcn1);
                         source.importClass.putIfAbsent(name1, fqcn1);
                     });
             source.addUnusedClass(key, val);
@@ -110,7 +109,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     @Override
     public void visit(final EnumConstantDeclaration node, final JavaSource source) {
-        log.traceEntry("EnumConstantDeclaration name={} range={}", node.getName(), node.getRange());
+        log.traceEntry("EnumConstantDeclaration className={} range={}", node.getName(), node.getRange());
 
         source.getCurrentBlock().ifPresent(blockScope -> node.getArgs()
                 .forEach(expression -> this.getExprFQCN(expression, blockScope, source)));
@@ -141,7 +140,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     @Override
     public void visit(final EnumDeclaration node, final JavaSource source) {
-        log.traceEntry("EnumDeclaration name={} range={}", node.getName(), node.getRange());
+        log.traceEntry("EnumDeclaration className={} range={}", node.getName(), node.getRange());
 
         final NodeList<ClassOrInterfaceType> nImplements = node.getImplements();
         String className = node.getName();
@@ -178,7 +177,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     @Override
     public void visit(final ClassOrInterfaceType node, final JavaSource source) {
         final String name = node.getName();
-        final EntryMessage entryMessage = log.traceEntry("ClassOrInterfaceType name={}", name);
+        final EntryMessage entryMessage = log.traceEntry("ClassOrInterfaceType className={}", name);
 
         node.getTypeArguments().ifPresent(list -> {
             list.forEach(type -> {
@@ -208,7 +207,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     @Override
     public void visit(final ClassOrInterfaceDeclaration node, final JavaSource source) {
-        final EntryMessage entryMessage = log.traceEntry("ClassOrInterfaceDeclaration name={} range={}",
+        final EntryMessage entryMessage = log.traceEntry("ClassOrInterfaceDeclaration className={} range={}",
                 node.getName(),
                 node.getRange());
 
@@ -288,11 +287,11 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                 typeBounds.forEach(typeBound -> {
                     final String tb = typeBound.getName();
                     scope.getTypeParameterMap().put(key, tb);
-                    log.trace("put class typeParameterMap name={} typeBound={} fqcn={}", key, tb, tb);
+                    log.trace("put class typeParameterMap className={} typeBound={} fqcn={}", key, tb, tb);
                 });
             } else {
                 scope.getTypeParameterMap().put(key, ClassNameUtils.OBJECT_CLASS);
-                log.trace("put class typeParameterMap name={} typeBound=Object fqcn={}", key, ClassNameUtils.OBJECT_CLASS);
+                log.trace("put class typeParameterMap className={} typeBound=Object fqcn={}", key, ClassNameUtils.OBJECT_CLASS);
             }
         });
     }
@@ -353,7 +352,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     @Override
     public void visit(final MethodDeclaration node, final JavaSource source) {
-        final EntryMessage entryMessage = log.traceEntry("MethodDeclaration name={} range={}", node.getName(), node.getRange());
+        final EntryMessage entryMessage = log.traceEntry("MethodDeclaration className={} range={}", node.getName(), node.getRange());
         final NameExpr nameExpr = node.getNameExpr();
 
         source.getCurrentType().ifPresent(typeScope -> {
@@ -372,11 +371,11 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                         final String tb = clazz.getName();
                         final String fqcn = this.toFQCN(tb, source);
                         typeParameterMap.put(name, fqcn);
-                        log.trace("put typeParameterMap name={} typeBound={} fqcn={}", name, tb, fqcn);
+                        log.trace("put typeParameterMap className={} typeBound={} fqcn={}", name, tb, fqcn);
                     });
                 } else {
                     typeParameterMap.put(name, ClassNameUtils.OBJECT_CLASS);
-                    log.trace("put typeParameterMap name={} typeBound=Object fqcn={}", name, ClassNameUtils.OBJECT_CLASS);
+                    log.trace("put typeParameterMap className={} typeBound=Object fqcn={}", name, ClassNameUtils.OBJECT_CLASS);
                 }
             });
 
@@ -500,7 +499,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
     @Override
     public void visit(final MethodCallExpr node, final JavaSource source) {
-        final EntryMessage entryMessage = log.traceEntry("MethodCallExpr name={} range={}", node.getName(), node.getRange());
+        final EntryMessage entryMessage = log.traceEntry("MethodCallExpr className={} range={}", node.getName(), node.getRange());
 
         source.getCurrentBlock().ifPresent(blockScope -> {
             this.methodCall(node, source, blockScope);
@@ -515,7 +514,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final NodeList<Expression> args = node.getArgs();
         Optional<Expression> scopeExpression = node.getScope();
 
-        final EntryMessage entryMessage = log.traceEntry("name={} range={}", node.getName(), node.getRange());
+        final EntryMessage entryMessage = log.traceEntry("className={} range={}", node.getName(), node.getRange());
 
         if (!scopeExpression.isPresent()) {
             if (src.staticImp.containsKey(methodName)) {
@@ -546,7 +545,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                         final String maybeReturn = this.getReturnType(src, bs, declaringClass, methodName, args).
                                 orElse(null);
 
-                        log.trace("class={} name={} maybeReturn={}", declaringClass, methodName, maybeReturn);
+                        log.trace("class={} className={} maybeReturn={}", declaringClass, methodName, maybeReturn);
 
                         return this.createMethodCallSymbol(node,
                                 scopeString,
@@ -592,13 +591,13 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     }
 
     private Optional<FieldAccessSymbol> createFieldAccessSymbol(final String name, final String scope, final String declaringClass, final Range range, final JavaSource source) {
-        final EntryMessage entryMessage = log.traceEntry("name={} scope={} declaringClass={} range={}", name, scope, declaringClass, range);
+        final EntryMessage entryMessage = log.traceEntry("className={} scope={} declaringClass={} range={}", name, scope, declaringClass, range);
 
         final FieldAccessSymbol symbol = new FieldAccessSymbol(scope, name, range, declaringClass);
 
         boolean isLocal = scope.equals("this") || scope.equals("super");
 
-        // 1. normal field access instanceA.name
+        // 1. normal field access instanceA.className
         final Optional<FieldAccessSymbol> fas = this.getReturnFromReflect(name, declaringClass, isLocal, true, source)
                 .map(type -> {
                     symbol.returnType = this.toFQCN(type, source);
@@ -746,7 +745,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     @Override
     public void visit(final NameExpr node, final JavaSource source) {
 
-        final EntryMessage entryMessage = log.traceEntry("NameExpr name={} range={}", node.getName(), node.getRange());
+        final EntryMessage entryMessage = log.traceEntry("NameExpr className={} range={}", node.getName(), node.getRange());
         source.getCurrentType().ifPresent(ts -> source.getCurrentBlock(ts).ifPresent(bs -> {
             final String name = node.getName();
             final Variable fieldSymbol = ts.getFieldSymbol(name);
@@ -1019,7 +1018,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                                                         final int size,
                                                         final MethodSignature methodSignature) {
 
-        final EntryMessage entryMessage = log.traceEntry("getCallingMethod class={} name={} signature={}",
+        final EntryMessage entryMessage = log.traceEntry("getCallingMethod class={} className={} signature={}",
                 declaringClass, name, methodSignature);
         final Optional<MemberDescriptor> result = source.getCurrentType().map(ts -> {
             return this.getMethodWithTypeCheck(declaringClass, name, size, methodSignature)
@@ -1299,7 +1298,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     }
 
     private Optional<String> analyzeReturnType(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
-        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        log.traceEntry("className={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
 
         final Optional<String> result = this.returnTypeFunctions.stream()
                 .map(function -> function.apply(name, declaringClass, isLocal, isField, source))
@@ -1320,7 +1319,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     }
 
     private Optional<String> getReturnFromSource(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
-        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        log.traceEntry("className={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
 
         if (isField) {
             if (isLocal) {
@@ -1356,7 +1355,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     }
 
     private Optional<String> getReturnEnum(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
-        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        log.traceEntry("className={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
         CachedASMReflector reflector = CachedASMReflector.getInstance();
 
         // Try Search Enum
@@ -1380,7 +1379,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     }
 
     private Optional<String> getReturnFromStaticImp(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
-        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        log.traceEntry("className={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
         if (source.staticImp.containsKey(name)) {
             final String dec = source.staticImp.get(name);
             final Optional<String> result = getReturnFromReflect(name, dec, isLocal, isField, source);
@@ -1391,7 +1390,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
     }
 
     public Optional<String> getReturnFromReflect(final String name, String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
-        final EntryMessage entryMessage = log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        final EntryMessage entryMessage = log.traceEntry("className={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
 
         final CachedASMReflector reflector = CachedASMReflector.getInstance();
         if (ClassNameUtils.isClassArray(declaringClass)) {
@@ -1408,23 +1407,30 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             }
         }
 
-        File classFile = reflector.getClassFile(ClassNameUtils.removeTypeAndArray(declaringClass));
-        if (classFile == null) {
-            // try inner class
-            final Optional<String> res = ClassNameUtils.toInnerClassName(declaringClass);
-            if (res.isPresent()) {
-                declaringClass = res.orElse(declaringClass);
-            }
-            classFile = reflector.getClassFile(ClassNameUtils.removeTypeAndArray(declaringClass));
-            if (classFile == null) {
-                log.debug("getReturnFromReflect classFile null name:{} declaringClass:{}", name, declaringClass);
-                final Optional<String> empty = Optional.empty();
-                return log.traceExit(entryMessage, empty);
-            }
+//        File classFile = reflector.getClassFile(ClassNameUtils.removeTypeAndArray(declaringClass));
+//        if (classFile == null) {
+//            // try inner class
+//            final Optional<String> res = ClassNameUtils.toInnerClassName(declaringClass);
+//            if (res.isPresent()) {
+//                declaringClass = res.orElse(declaringClass);
+//            }
+//            log.trace("@declaringClass={}", declaringClass);
+//            classFile = reflector.getClassFile(ClassNameUtils.removeTypeAndArray(declaringClass));
+//            if (classFile == null) {
+//                log.debug("getReturnFromReflect classFile null className:{} declaringClass:{}", className, declaringClass);
+//                final Optional<String> empty = Optional.empty();
+//                return log.traceExit(entryMessage, empty);
+//            }
+//        }
+        final Optional<CachedASMReflector.ProjectClassInfo> res = reflector.toExistInnerClassName(declaringClass);
+        if (!res.isPresent()) {
+            final Optional<String> empty = Optional.empty();
+            return log.traceExit(entryMessage, empty);
         }
-        final String declaringClass2 = declaringClass;
+        final CachedASMReflector.ProjectClassInfo classInfo = res.get();
+        final String declaringClass2 = classInfo.className;
 
-        boolean onlyPublic = !isLocal && classFile.getName().endsWith("jar");
+        boolean onlyPublic = !isLocal && classInfo.classFile.getName().endsWith("jar");
 
         final String result = reflector.reflectStream(declaringClass2)
                 .filter(md -> this.returnTypeFilter(name, isField, onlyPublic, md))

@@ -30,7 +30,7 @@ public class ASMReflectorTest extends GradleTestBase {
         ASMReflector asmReflector = ASMReflector.getInstance();
         Map<ClassIndex, File> classIndex = timeIt(() -> asmReflector.getClasses(jar));
         assertEquals(189, classIndex.size());
-//        classIndex.forEach((classIndex1, file) -> System.out.println(classIndex1));
+//        classIndex.forEach((classIndex1, classFile) -> System.out.println(classIndex1));
     }
 
     @Test
@@ -39,7 +39,7 @@ public class ASMReflectorTest extends GradleTestBase {
         ASMReflector asmReflector = ASMReflector.getInstance();
         Map<ClassIndex, File> classIndex = timeIt(() -> asmReflector.getClasses(jar));
         assertEquals(4105, classIndex.size());
-//        classIndex.forEach((classIndex1, file) -> System.out.println(classIndex1));
+//        classIndex.forEach((classIndex1, classFile) -> System.out.println(classIndex1));
     }
 
     @Test

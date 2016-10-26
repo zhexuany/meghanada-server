@@ -14,7 +14,7 @@ public class BlockScopeSerializer extends Serializer<BlockScope> {
 
     @Override
     public void write(Kryo kryo, Output output, BlockScope scope) {
-        // 1. name
+        // 1. className
         output.writeString(scope.name);
         // 2. range
         final Range range = scope.range;
@@ -74,7 +74,7 @@ public class BlockScopeSerializer extends Serializer<BlockScope> {
 
     @Override
     public BlockScope read(Kryo kryo, Input input, Class<BlockScope> type) {
-        // 1. name
+        // 1. className
         final String name = input.readString();
         // 2. range
         final Integer l1 = input.readInt(true);

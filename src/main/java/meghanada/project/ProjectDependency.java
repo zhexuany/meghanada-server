@@ -63,7 +63,7 @@ public class ProjectDependency {
                 .add("id", id)
                 .add("scope", scope)
                 .add("version", version)
-                .add("file", file)
+                .add("classFile", file)
                 .toString();
     }
 }

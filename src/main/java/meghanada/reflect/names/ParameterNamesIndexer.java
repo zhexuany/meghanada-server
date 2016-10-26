@@ -69,7 +69,7 @@ public class ParameterNamesIndexer {
     }
 
     private void serializeParams(ZipFile zipFile, ZipEntry zipEntry, String javaName) throws IOException, ParseException {
-        // log.debug("file {}", fileName);
+        // log.debug("classFile {}", fileName);
         try (InputStream in = zipFile.getInputStream(zipEntry)) {
             String fqcn = javaName.substring(0, javaName.length() - 5);
             CompilationUnit cu = JavaParser.parse(in, Charset.forName("UTF-8"));

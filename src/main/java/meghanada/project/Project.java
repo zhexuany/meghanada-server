@@ -40,8 +40,8 @@ public abstract class Project {
     private static final String TEST_RESOURCES = "test-resources";
     private static final String OUTPUT = "output";
     private static final String TEST_OUTPUT = "test-output";
-    private static final String INCLUDE_FILE = "include-file";
-    private static final String EXCLUDE_FILE = "exclude-file";
+    private static final String INCLUDE_FILE = "include-classFile";
+    private static final String EXCLUDE_FILE = "exclude-classFile";
 
     protected File projectRoot;
     protected Set<ProjectDependency> dependencies = new HashSet<>();

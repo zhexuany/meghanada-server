@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-import static meghanada.config.Config.traceIt;
+import static meghanada.config.Config.timeIt;
 
 public class MethodSignatureVisitorTest extends GradleTestBase {
 
@@ -35,12 +35,12 @@ public class MethodSignatureVisitorTest extends GradleTestBase {
     public void testMethod1() throws Exception {
         final File f = new File(getTestOutputDir(), "meghanada/GenericMethod1.class");
         final String fqcn = "meghanada.GenericMethod1";
-        TestVisitor visitor = traceIt(() -> doAnalyze(f, fqcn));
+        TestVisitor visitor = timeIt(() -> doAnalyze(f, fqcn));
 
     }
 
     private TestVisitor doAnalyze(File file, String fqcn) throws IOException {
-        // log.debug("class {}", name);
+        // log.debug("class {}", className);
         try (InputStream in = new FileInputStream(file)) {
             ClassReader classReader = new ClassReader(in);
             String className = classReader.getClassName().replace("/", ".");
@@ -83,7 +83,7 @@ public class MethodSignatureVisitorTest extends GradleTestBase {
             System.out.println(this.visitor.getTypeParameters());
             System.out.println(this.visitor.getReturnType());
 
-            // result.put(name, this.visitor.getFormalType());
+            // result.put(className, this.visitor.getFormalType());
 
             return super.visitMethod(access, name, desc, signature, exceptions);
         }

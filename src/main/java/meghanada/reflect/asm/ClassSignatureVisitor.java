@@ -38,7 +38,7 @@ class ClassSignatureVisitor extends SignatureVisitor {
 
     @Override
     public void visitInnerClassType(String name) {
-        // log.debug("# visitInnerClassType name:{}", name);
+        // log.debug("# visitInnerClassType className:{}", className);
         super.visitInnerClassType(name);
     }
 

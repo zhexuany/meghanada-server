@@ -11,7 +11,8 @@ import org.junit.Test;
 
 import java.io.File;
 
-import static meghanada.config.Config.*;
+import static meghanada.config.Config.debugIt;
+import static meghanada.config.Config.timeIt;
 import static org.junit.Assert.assertEquals;
 
 public class JavaVariableCompletionTest extends GradleTestBase {
@@ -53,10 +54,10 @@ public class JavaVariableCompletionTest extends GradleTestBase {
     public void createLocalVariable2() throws Exception {
         JavaVariableCompletion completion = getCompilation();
         File file = new File("./src/main/java/meghanada/compiler/SimpleJavaCompiler.java");
-        LocalVariable lv = traceIt(() -> {
+        LocalVariable lv = timeIt(() -> {
             final Range range = Range.range(0, 0, 0, 0);
             final Range nameRange = Range.range(0, 0, 0, 0);
-            final MethodCallSymbol mcs = new MethodCallSymbol("file", "getFileName", range, nameRange, "");
+            final MethodCallSymbol mcs = new MethodCallSymbol("classFile", "getFileName", range, nameRange, "");
             return completion.createLocalVariable(mcs, "String");
         });
         System.out.println(lv);

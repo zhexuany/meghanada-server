@@ -5,6 +5,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.pool.KryoCallback;
 import com.esotericsoftware.kryo.pool.KryoPool;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.LoadingCache;
@@ -611,4 +612,36 @@ public class CachedASMReflector {
         return false;
     }
 
+    public Optional<ProjectClassInfo> toExistInnerClassName(final String className) {
+        final ClassName cn = new ClassName(className);
+        final String name = cn.getName();
+        final File classFile = this.getClassFile(name);
+        if (classFile == null) {
+            final Optional<String> res = ClassNameUtils.toInnerClassName(className, true);
+            if (!res.isPresent()) {
+                return Optional.empty();
+            }
+            final String next = res.get();
+            return this.toExistInnerClassName(next);
+        }
+        return Optional.of(new ProjectClassInfo(className, classFile));
+    }
+
+    public static class ProjectClassInfo {
+        public String className;
+        public File classFile;
+
+        public ProjectClassInfo(final String className, final File classFile) {
+            this.className = className;
+            this.classFile = classFile;
+        }
+
+        @Override
+        public String toString() {
+            return MoreObjects.toStringHelper(this)
+                    .add("className", className)
+                    .add("classFile", classFile)
+                    .toString();
+        }
+    }
 }

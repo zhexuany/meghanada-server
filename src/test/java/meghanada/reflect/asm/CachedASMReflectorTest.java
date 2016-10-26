@@ -17,9 +17,9 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static meghanada.config.Config.timeIt;
-import static meghanada.config.Config.traceIt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -322,7 +322,7 @@ public class CachedASMReflectorTest extends GradleTestBase {
             String fqcn = "meghanada.utils.ClassNameUtils";
             List<MemberDescriptor> memberDescriptors = cachedASMReflector.reflect(fqcn);
             memberDescriptors.forEach(m -> System.out.println(m.getDisplayDeclaration()));
-            assertEquals(54, memberDescriptors.size());
+            assertEquals(55, memberDescriptors.size());
         }
 
     }
@@ -367,7 +367,7 @@ public class CachedASMReflectorTest extends GradleTestBase {
 
         {
             String fqcn = "meghanada.SelfRef1";
-            List<MemberDescriptor> memberDescriptors = traceIt(() -> {
+            List<MemberDescriptor> memberDescriptors = timeIt(() -> {
                 return cachedASMReflector.reflect(fqcn);
             });
             memberDescriptors.forEach(m -> System.out.println(m.getDisplayDeclaration()));
@@ -392,7 +392,7 @@ public class CachedASMReflectorTest extends GradleTestBase {
 
         {
             String fqcn = "meghanada.SelfRef2";
-            List<MemberDescriptor> memberDescriptors = traceIt(() -> {
+            List<MemberDescriptor> memberDescriptors = timeIt(() -> {
                 return cachedASMReflector.reflect(fqcn);
             });
             memberDescriptors.forEach(m -> System.out.println(m.getDisplayDeclaration()));
@@ -512,6 +512,19 @@ public class CachedASMReflectorTest extends GradleTestBase {
         String clazz = "java.lang.Class[]";
         final boolean b = cachedASMReflector.matchClass(target, clazz);
         assertEquals(true, b);
+    }
+
+    @Test
+    public void testToExistInnerClassName1() throws Exception {
+        CachedASMReflector cachedASMReflector = CachedASMReflector.getInstance();
+        cachedASMReflector.addClasspath(getOutputDir());
+        cachedASMReflector.addClasspath(getTestOutputDir());
+        cachedASMReflector.createClassIndexes();
+        final String name = "meghanada.GenericInnerClass2.ABC.DEF";
+        final Optional<CachedASMReflector.ProjectClassInfo> innerName = timeIt(() -> cachedASMReflector.toExistInnerClassName(name));
+        assertEquals(true, innerName.isPresent());
+        System.out.println(innerName);
+        assertEquals("meghanada.GenericInnerClass2$ABC$DEF", innerName.get().className);
     }
 
 }

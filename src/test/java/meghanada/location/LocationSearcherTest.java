@@ -10,7 +10,6 @@ import org.junit.Test;
 import java.io.File;
 
 import static meghanada.config.Config.timeIt;
-import static meghanada.config.Config.traceIt;
 import static org.junit.Assert.*;
 
 public class LocationSearcherTest extends GradleTestBase {
@@ -109,7 +108,7 @@ public class LocationSearcherTest extends GradleTestBase {
         File f = new File("src/test/resources/Lambda4.java");
         LocationSearcher locationSearcher = getSearcher();
         {
-            Location result = traceIt(() -> {
+            Location result = timeIt(() -> {
                 return locationSearcher.searchDeclaration(f, 19, 27, "println");
             });
             assertNotNull(result);

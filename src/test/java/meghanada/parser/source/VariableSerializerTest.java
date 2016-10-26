@@ -37,7 +37,7 @@ public class VariableSerializerTest extends GradleTestBase {
         final Position begin = new Position(10, 1);
         final Position end = new Position(11, 2);
         final Range range = new Range(begin, end);
-        final Variable variable = new Variable("com.example", "name", range, "com.example.Foo");
+        final Variable variable = new Variable("com.example", "className", range, "com.example.Foo");
 
         kryoPool.run(new KryoCallback<Variable>() {
             @Override

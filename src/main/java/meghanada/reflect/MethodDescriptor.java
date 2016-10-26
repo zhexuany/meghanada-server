@@ -245,7 +245,7 @@ public class MethodDescriptor extends MemberDescriptor implements Serializable {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                .add("name", name)
+                .add("className", name)
                 .add("returnType", returnType)
                 .add("parameters", parameters)
                 .add("typeParameters", typeParameters)

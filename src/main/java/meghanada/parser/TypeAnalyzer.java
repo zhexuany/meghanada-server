@@ -347,7 +347,7 @@ class TypeAnalyzer {
     }
 
     Optional<String> analyzeReturnType(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
-        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        log.traceEntry("className={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
 
         final Optional<String> result = this.returnTypeFunctions.stream()
                 .map(function -> function.apply(name, declaringClass, isLocal, isField, source))
@@ -368,7 +368,7 @@ class TypeAnalyzer {
     }
 
     private Optional<String> getReturnFromSource(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
-        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        log.traceEntry("className={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
 
         if (isField) {
             if (isLocal) {
@@ -404,7 +404,7 @@ class TypeAnalyzer {
     }
 
     private Optional<String> getReturnEnum(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
-        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        log.traceEntry("className={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
         CachedASMReflector reflector = CachedASMReflector.getInstance();
 
         // Try Search Enum
@@ -428,7 +428,7 @@ class TypeAnalyzer {
     }
 
     private Optional<String> getReturnFromStaticImp(final String name, final String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
-        log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        log.traceEntry("className={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
         if (source.staticImp.containsKey(name)) {
             final String dec = source.staticImp.get(name);
             final Optional<String> result = getReturnFromReflect(name, dec, isLocal, isField, source);
@@ -439,7 +439,7 @@ class TypeAnalyzer {
     }
 
     public Optional<String> getReturnFromReflect(final String name, String declaringClass, final boolean isLocal, final boolean isField, final JavaSource source) {
-        final EntryMessage entryMessage = log.traceEntry("name={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
+        final EntryMessage entryMessage = log.traceEntry("className={} declaringClass={} isLocal={} isField={}", name, declaringClass, isLocal, isField);
 
         final CachedASMReflector reflector = CachedASMReflector.getInstance();
         if (ClassNameUtils.isClassArray(declaringClass)) {
@@ -465,7 +465,7 @@ class TypeAnalyzer {
             }
             classFile = reflector.getClassFile(ClassNameUtils.removeTypeAndArray(declaringClass));
             if (classFile == null) {
-                log.debug("getReturnFromReflect classFile null name:{} declaringClass:{}", name, declaringClass);
+                log.debug("getReturnFromReflect classFile null className:{} declaringClass:{}", name, declaringClass);
                 final Optional<String> empty = Optional.empty();
                 return log.traceExit(entryMessage, empty);
             }

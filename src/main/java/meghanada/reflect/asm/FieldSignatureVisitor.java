@@ -35,7 +35,7 @@ class FieldSignatureVisitor extends SignatureVisitor {
 
     FieldSignatureVisitor(final String name, final List<String> classTypeParameters) {
         super(Opcodes.ASM5);
-        final EntryMessage em = log.traceEntry("name={} classTypeParameters={}", name, classTypeParameters);
+        final EntryMessage em = log.traceEntry("className={} classTypeParameters={}", name, classTypeParameters);
         this.name = name;
         this.classTypeParameters = classTypeParameters;
         this.typeParameters = new HashSet<>(2);
@@ -48,7 +48,7 @@ class FieldSignatureVisitor extends SignatureVisitor {
 
     private FieldSignatureVisitor(final String name, final FieldSignatureVisitor parent) {
         super(Opcodes.ASM5);
-        log.traceEntry("name={} parent={}", name, parent);
+        log.traceEntry("className={} parent={}", name, parent);
         this.name = name;
         this.parent = parent;
         this.classTypeParameters = parent.classTypeParameters;
@@ -62,7 +62,7 @@ class FieldSignatureVisitor extends SignatureVisitor {
 
     @Override
     public SignatureVisitor visitTypeArgument(final char c) {
-        final EntryMessage em = log.traceEntry("name={} typeInfo={} currentType={}", this.name, this.typeInfo, this.currentType);
+        final EntryMessage em = log.traceEntry("className={} typeInfo={} currentType={}", this.name, this.typeInfo, this.currentType);
 
         this.isInstance = false;
         this.isExtends = false;
@@ -121,7 +121,7 @@ class FieldSignatureVisitor extends SignatureVisitor {
                 this.holdArray = false;
             }
         }
-        final EntryMessage em = log.traceEntry("s={} name={} typeInfo={} currentType={}", s, this.name, this.typeInfo, this.currentType);
+        final EntryMessage em = log.traceEntry("s={} className={} typeInfo={} currentType={}", s, this.name, this.typeInfo, this.currentType);
 
         if (this.currentType.size() == 0) {
             // set main
@@ -150,7 +150,7 @@ class FieldSignatureVisitor extends SignatureVisitor {
             // on hold array flag
             this.holdArray = true;
         }
-        final EntryMessage em = log.traceEntry("name={} current={} currentType={}", this.name, current, this.currentType);
+        final EntryMessage em = log.traceEntry("className={} current={} currentType={}", this.name, current, this.currentType);
         return log.traceExit(em, super.visitArrayType());
     }
 
@@ -171,13 +171,13 @@ class FieldSignatureVisitor extends SignatureVisitor {
             // set main
             this.currentType.push(typeInfo);
         }
-        final EntryMessage em = log.traceEntry("c={} name={} typeInfo={} currentType={}", c, this.name, this.typeInfo, this.currentType);
+        final EntryMessage em = log.traceEntry("c={} className={} typeInfo={} currentType={}", c, this.name, this.typeInfo, this.currentType);
         log.traceExit(em);
     }
 
     @Override
     public void visitTypeVariable(String typeVariable) {
-        final EntryMessage em = log.traceEntry("name={} typeVariable={} typeInfo={} current={}", this.name, typeVariable, this.typeInfo, this.currentType);
+        final EntryMessage em = log.traceEntry("className={} typeVariable={} typeInfo={} current={}", this.name, typeVariable, this.typeInfo, this.currentType);
         TypeInfo typeInfo;
 
         if (this.typeMap != null && typeMap.containsKey(typeVariable)) {
@@ -226,7 +226,7 @@ class FieldSignatureVisitor extends SignatureVisitor {
 
     @Override
     public void visitEnd() {
-        final EntryMessage em = log.traceEntry("name={} typeInfo={} currentType={} ", this.name, this.typeInfo, this.currentType);
+        final EntryMessage em = log.traceEntry("className={} typeInfo={} currentType={} ", this.name, this.typeInfo, this.currentType);
         if (this.currentType.size() > 1) {
             this.currentType.pop();
         }
@@ -235,14 +235,14 @@ class FieldSignatureVisitor extends SignatureVisitor {
 
     @Override
     public void visitFormalTypeParameter(final String name) {
-        final EntryMessage em = log.traceEntry("name={}", name);
+        final EntryMessage em = log.traceEntry("className={}", name);
         super.visitFormalTypeParameter(name);
         log.traceExit(em);
     }
 
     @Override
     public void visitInnerClassType(final String name) {
-        final EntryMessage em = log.traceEntry("name={} typeInfo={}", name, this.typeInfo);
+        final EntryMessage em = log.traceEntry("className={} typeInfo={}", name, this.typeInfo);
         this.typeInfo.innerClass = name;
         log.traceExit(em);
     }
@@ -287,7 +287,7 @@ class FieldSignatureVisitor extends SignatureVisitor {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                 .add("classTypeParameters", classTypeParameters)
-                .add("name", name)
+                .add("className", name)
                 .add("currentType", currentType)
                 .add("typeParameters", typeParameters)
                 .add("typeInfo", typeInfo)

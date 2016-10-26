@@ -129,7 +129,7 @@ public class ClassNameUtils {
         return sb.toString();
     }
 
-    public static String replaceDotToInnnerMark(String string, boolean last) {
+    public static String replaceDotToInnnerMark(final String string, final boolean last) {
         final StringBuilder sb = new StringBuilder(string);
         final int start = last ? sb.lastIndexOf(DOT_SEPARATOR, 0) : sb.indexOf(DOT_SEPARATOR, 0);
         replaceString(sb, DOT_SEPARATOR, ClassNameUtils.INNER_MARK, start);
@@ -150,7 +150,11 @@ public class ClassNameUtils {
     }
 
     public static Optional<String> toInnerClassName(final String name) {
-        if (name.contains("$")) {
+        return ClassNameUtils.toInnerClassName(name, false);
+    }
+
+    public static Optional<String> toInnerClassName(final String name, final boolean recursive) {
+        if (!recursive && name.contains("$")) {
             return Optional.of(name);
         }
         final int sep = name.lastIndexOf(".");

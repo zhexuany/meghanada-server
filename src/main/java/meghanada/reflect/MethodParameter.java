@@ -35,7 +35,7 @@ public class MethodParameter implements Serializable {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                 .add("type", type)
-                .add("name", name)
+                .add("className", name)
                 .toString();
     }
 }

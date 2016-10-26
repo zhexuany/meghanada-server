@@ -370,7 +370,7 @@ public class JavaSource {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                .add("file", file)
+                .add("classFile", file)
                 .add("pkg", pkg)
                 .add("typeScopes", typeScopes)
                 .add("importClass", importClass)

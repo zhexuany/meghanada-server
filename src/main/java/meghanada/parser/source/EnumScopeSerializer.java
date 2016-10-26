@@ -17,7 +17,7 @@ public class EnumScopeSerializer extends Serializer<EnumScope> {
 
     @Override
     public void write(Kryo kryo, Output output, EnumScope scope) {
-        // 1. name
+        // 1. className
         output.writeString(scope.name);
 
         // 2. range
@@ -115,7 +115,7 @@ public class EnumScopeSerializer extends Serializer<EnumScope> {
 
     @Override
     public EnumScope read(Kryo kryo, Input input, Class<EnumScope> aClass) {
-        // 1. name
+        // 1. className
         final String name = input.readString();
 
         // 2. range

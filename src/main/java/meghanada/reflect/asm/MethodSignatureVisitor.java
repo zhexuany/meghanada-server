@@ -40,7 +40,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
 
     MethodSignatureVisitor(final String name, final List<String> classTypeParameters) {
         super(Opcodes.ASM5);
-        final EntryMessage message = log.traceEntry("name={} classTypeParameters={}", name, classTypeParameters);
+        final EntryMessage message = log.traceEntry("className={} classTypeParameters={}", name, classTypeParameters);
         this.name = name;
         this.classTypeParameters = classTypeParameters;
         this.parameterTypes = new ArrayList<>(4);
@@ -51,7 +51,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
 
     private MethodSignatureVisitor(String name, MethodSignatureVisitor parent) {
         super(Opcodes.ASM5);
-        final EntryMessage message = log.traceEntry("name={}", name);
+        final EntryMessage message = log.traceEntry("className={}", name);
         this.name = name;
         this.parent = parent;
         this.classTypeParameters = parent.classTypeParameters;
@@ -248,7 +248,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
 
     @Override
     public SignatureVisitor visitParameterType() {
-        final EntryMessage message = log.traceEntry("name={} current={}", this.name, this.current);
+        final EntryMessage message = log.traceEntry("className={} current={}", this.name, this.current);
         MethodSignatureVisitor visitor = new MethodSignatureVisitor(this.name, this);
         visitor.isParameter = true;
         log.traceExit(message);
@@ -257,7 +257,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
 
     @Override
     public SignatureVisitor visitReturnType() {
-        final EntryMessage message = log.traceEntry("name={} parameterTypes={}", this.name, this.parameterTypes);
+        final EntryMessage message = log.traceEntry("className={} parameterTypes={}", this.name, this.parameterTypes);
         MethodSignatureVisitor visitor = new MethodSignatureVisitor(this.name, this);
         visitor.isReturn = true;
         log.traceExit(message);
@@ -409,7 +409,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                .add("name", name)
+                .add("className", name)
                 .add("parameterTypes", parameterTypes)
                 .add("typeParameters", typeParameters)
                 .add("current", current)

@@ -44,7 +44,7 @@ class MethodAnalyzeVisitor extends MethodVisitor {
 
     MethodAnalyzeVisitor(final ClassAnalyzeVisitor classAnalyzeVisitor, final int access, final String name, final String desc, final String signature, final String[] exceptions) {
         super(Opcodes.ASM5);
-        final EntryMessage entryMessage = log.traceEntry("classAnalyzeVisitor={} access={} name={} desc={} signature={} exceptions={}", classAnalyzeVisitor, access, name, desc, signature, exceptions);
+        final EntryMessage entryMessage = log.traceEntry("classAnalyzeVisitor={} access={} className={} desc={} signature={} exceptions={}", classAnalyzeVisitor, access, name, desc, signature, exceptions);
         this.classAnalyzeVisitor = classAnalyzeVisitor;
         this.access = access;
         this.name = name;
@@ -62,9 +62,9 @@ class MethodAnalyzeVisitor extends MethodVisitor {
         this.methodSignature = target;
         this.interfaceMethod = this.classAnalyzeVisitor.getClassIndex().isInterface;
 
-        // log.trace("name:{} sig:{}", name, target);
+        // log.trace("className:{} sig:{}", className, target);
         // log.trace("classIndex:{}", classAnalyzeVisitor.getClassIndex().isInterface);
-        // log.debug("methodName {} desc {} sig {}", name, desc, signature);
+        // log.debug("methodName {} desc {} sig {}", className, desc, signature);
         log.traceExit(entryMessage);
     }
 
@@ -93,7 +93,7 @@ class MethodAnalyzeVisitor extends MethodVisitor {
     }
 
     MethodAnalyzeVisitor parseSignature() {
-        final EntryMessage entryMessage = log.traceEntry("name={} methodSignature={}", this.name, this.methodSignature);
+        final EntryMessage entryMessage = log.traceEntry("className={} methodSignature={}", this.name, this.methodSignature);
         final boolean isStatic = (Opcodes.ACC_STATIC & this.access) > 0;
         final SignatureReader signatureReader = new SignatureReader(this.methodSignature);
         MethodSignatureVisitor visitor;
@@ -151,7 +151,7 @@ class MethodAnalyzeVisitor extends MethodVisitor {
 
     @Override
     public void visitLocalVariable(String name, String description, String signature, Label start, Label end, int index) {
-        log.traceEntry("name={} description={} signature={} start={} end={} index={}", name, description, signature, start, end, index);
+        log.traceEntry("className={} description={} signature={} start={} end={} index={}", name, description, signature, start, end, index);
         // boolean hasLvtInfo = true;
         for (int i = 0; i < this.lvtSlotIndex.length; i++) {
             if (this.lvtSlotIndex[i] == index) {
@@ -170,7 +170,7 @@ class MethodAnalyzeVisitor extends MethodVisitor {
 
     @Override
     public void visitCode() {
-        final EntryMessage entryMessage = log.traceEntry("name={}", this.name);
+        final EntryMessage entryMessage = log.traceEntry("className={}", this.name);
         if (this.interfaceMethod) {
             this.hasDefault = true;
         }
@@ -201,13 +201,13 @@ class MethodAnalyzeVisitor extends MethodVisitor {
             TypeInfo typeInfo = this.parameterTypes.get(i);
             typeInfo.paramName = this.parameterNames[i];
         }
-        // log.debug("{} ({})", this.name, this.parameterTypes);
+        // log.debug("{} ({})", this.className, this.parameterTypes);
         this.toMemberDescriptor();
         log.traceExit(entryMessage);
     }
 
     private boolean tryGetParameterName(final String className, final String name) {
-        // log.debug("search {}", name);
+        // log.debug("search {}", className);
         final String path = ClassNameUtils.replace(className, ".", "/");
         try (InputStream in = getClass().getResourceAsStream("/params/" + path + ".param")) {
             if (in == null) {
@@ -342,7 +342,7 @@ class MethodAnalyzeVisitor extends MethodVisitor {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                 .add("access", access)
-                .add("name", name)
+                .add("className", name)
                 .add("exceptions", exceptions)
                 .add("methodSignature", methodSignature)
                 .add("interfaceMethod", interfaceMethod)

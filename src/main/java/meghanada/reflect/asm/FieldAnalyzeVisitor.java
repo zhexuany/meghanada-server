@@ -77,7 +77,7 @@ class FieldAnalyzeVisitor extends FieldVisitor {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                 .add("access", access)
-                .add("name", name)
+                .add("className", name)
                 .add("fieldSignature", fieldSignature)
                 .add("typeMap", typeMap)
                 .toString();

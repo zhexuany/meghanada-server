@@ -329,8 +329,8 @@ public class JavaCompletion {
 
         // search this
 //        for (CandidateUnit cu : source.getMemberDescriptors(line)) {
-//            final String name = cu.getName();
-//            if (name.startsWith(prefix)) {
+//            final String className = cu.getName();
+//            if (className.startsWith(prefix)) {
 //                result.add(cu);
 //            }
 //        }

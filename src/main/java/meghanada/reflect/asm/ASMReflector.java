@@ -325,7 +325,7 @@ class ASMReflector {
                 final String fqcn = ClassNameUtils.removeTypeParameter(nameWithTP);
                 final List<MemberDescriptor> members = getMembersFromClassFile(file, file, fqcn, false);
                 if (members != null) {
-                    // 1 file
+                    // 1 classFile
                     if (isSuper) {
                         replaceDescriptorsType(nameWithTP, members);
                     }
@@ -409,7 +409,7 @@ class ASMReflector {
                             }
                         }
 
-                        // To bin name
+                        // To bin className
                         className = ClassNameUtils.replaceInnerMark(className);
                         if (className.equals(nameWithoutTP)) {
                             try (final InputStream in = jarFile.getInputStream(jarEntry)) {

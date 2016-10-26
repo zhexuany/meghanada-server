@@ -129,7 +129,7 @@ public class SessionEventBus {
         public String toString() {
             return MoreObjects.toStringHelper(this)
                     .add("session", session)
-                    .add("file", file)
+                    .add("classFile", file)
                     .toString();
         }
     }

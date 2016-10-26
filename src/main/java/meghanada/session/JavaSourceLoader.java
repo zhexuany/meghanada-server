@@ -93,7 +93,7 @@ public class JavaSourceLoader extends CacheLoader<File, JavaSource> {
             return this.writeCache(source);
         }
 
-        log.debug("load file:{}", file);
+        log.debug("load classFile:{}", file);
         try {
             return reflector.getKryoPool().run(kryo -> {
                 try (Input input = new Input(new InflaterInputStream(new ByteBufferInput(new FileInputStream(file), 8192)))) {
@@ -121,7 +121,7 @@ public class JavaSourceLoader extends CacheLoader<File, JavaSource> {
 
         file.getParentFile().mkdirs();
 
-        log.debug("write file:{}", file);
+        log.debug("write classFile:{}", file);
         reflector.getKryoPool().run(new KryoCallback<JavaSource>() {
             @Override
             public JavaSource execute(Kryo kryo) {

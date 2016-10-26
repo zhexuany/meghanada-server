@@ -65,7 +65,7 @@ public class FieldSignatureVisitorTest extends GradleTestBase {
     }
 
     private TestVisitor doAnalyze(File file, String fqcn) throws IOException {
-        // log.debug("class {}", name);
+        // log.debug("class {}", className);
         try (InputStream in = new FileInputStream(file)) {
             ClassReader classReader = new ClassReader(in);
             String className = classReader.getClassName().replace("/", ".");
@@ -88,7 +88,7 @@ public class FieldSignatureVisitorTest extends GradleTestBase {
             String name = entry.getName();
 
             if (name.endsWith(".class")) {
-                // log.debug("class {}", name);
+                // log.debug("class {}", className);
                 try (InputStream in = jarFile.getInputStream(entry)) {
                     ClassReader classReader = new ClassReader(in);
                     String className = classReader.getClassName().replace("/", ".");

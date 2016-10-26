@@ -61,7 +61,7 @@ public class Variable {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                 .add("fqcn", fqcn)
-                .add("name", name)
+                .add("className", name)
                 .add("range", range)
                 .add("declaration", declaration)
                 .add("parent", parent)

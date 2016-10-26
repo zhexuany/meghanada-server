@@ -18,7 +18,7 @@ public class FileWatchEventSubscriber extends AbstractSubscriber {
 
     public FileWatchEventSubscriber(SessionEventBus sessionEventBus) {
         super(sessionEventBus);
-        log.debug("subscribe file watch");
+        log.debug("subscribe classFile watch");
     }
 
     @Subscribe

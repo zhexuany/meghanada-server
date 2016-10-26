@@ -15,7 +15,7 @@ import java.util.Set;
 public class MethodScopeSerializer extends Serializer<MethodScope> {
     @Override
     public void write(Kryo kryo, Output output, MethodScope scope) {
-        // 1. name
+        // 1. className
         output.writeString(scope.name);
         // 2. range
         final Range range = scope.range;
@@ -95,7 +95,7 @@ public class MethodScopeSerializer extends Serializer<MethodScope> {
 
     @Override
     public MethodScope read(Kryo kryo, Input input, Class<MethodScope> type) {
-        // 1. name
+        // 1. className
         final String name = input.readString();
 
         // 2. range

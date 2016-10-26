@@ -16,7 +16,7 @@ public class TypeScopeSerializer extends Serializer<TypeScope> {
 
     @Override
     public void write(Kryo kryo, Output output, TypeScope scope) {
-        // 1. name
+        // 1. className
         output.writeString(scope.name);
 
         // 2. range
@@ -104,7 +104,7 @@ public class TypeScopeSerializer extends Serializer<TypeScope> {
 
     @Override
     public TypeScope read(Kryo kryo, Input input, Class<TypeScope> type) {
-        // 1. name
+        // 1. className
         final String name = input.readString();
 
         // 2. range

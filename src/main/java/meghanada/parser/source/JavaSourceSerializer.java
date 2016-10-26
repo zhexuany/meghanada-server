@@ -16,7 +16,7 @@ public class JavaSourceSerializer extends Serializer<JavaSource> {
 
     @Override
     public void write(Kryo kryo, Output output, JavaSource source) {
-        // 1. file
+        // 1. classFile
         final String path = source.file.getPath();
         output.writeString(path);
 
@@ -44,7 +44,7 @@ public class JavaSourceSerializer extends Serializer<JavaSource> {
 
     @Override
     public JavaSource read(Kryo kryo, Input input, Class<JavaSource> type) {
-        // 1. file
+        // 1. classFile
         final String path = input.readString();
         final JavaSource source = new JavaSource(new File(path));
 

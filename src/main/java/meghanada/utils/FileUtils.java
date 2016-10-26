@@ -30,7 +30,7 @@ public final class FileUtils {
     private static final Logger log = LogManager.getLogger(FileUtils.class);
 
     public static String md5sum(final File file) throws IOException {
-        final EntryMessage entryMessage = log.traceEntry("file={}", file);
+        final EntryMessage entryMessage = log.traceEntry("classFile={}", file);
         MessageDigest md;
         try {
             md = MessageDigest.getInstance("MD5");

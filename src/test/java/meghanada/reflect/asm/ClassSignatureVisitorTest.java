@@ -200,7 +200,7 @@ public class ClassSignatureVisitorTest extends GradleTestBase {
             String name = entry.getName();
 
             if (name.endsWith(".class")) {
-                // log.debug("class {}", name);
+                // log.debug("class {}", className);
                 try (InputStream in = jarFile.getInputStream(entry)) {
                     ClassReader classReader = new ClassReader(in);
                     String className = classReader.getClassName().replace("/", ".");

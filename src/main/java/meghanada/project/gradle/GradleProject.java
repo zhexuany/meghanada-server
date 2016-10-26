@@ -87,10 +87,10 @@ public class GradleProject extends Project {
                 final File moduleProjectRoot = gradleProject.getProjectDirectory();
                 final Set<String> depProjects = new HashSet<>(2);
 
-                log.debug("module project name:{} projectRoot:{}", projectName, moduleProjectRoot);
+                log.debug("module project className:{} projectRoot:{}", projectName, moduleProjectRoot);
                 if (moduleProjectRoot.equals(this.getProjectRoot())) {
                     targetProjectName = projectName;
-                    log.debug("find target project name:{} projectRoot:{}", projectName, projectRoot);
+                    log.debug("find target project className:{} projectRoot:{}", projectName, projectRoot);
 
                     if (this.output == null) {
                         final String buildDir = gradleProject.getBuildDirectory().getCanonicalPath();
@@ -300,7 +300,7 @@ public class GradleProject extends Project {
                 dependencies.add(projectDependency);
             } else {
                 final String name = ((IdeaModuleDependency) dependency).getTargetModuleName();
-                log.debug("depend project name:{}", name);
+                log.debug("depend project className:{}", name);
                 depProjects.add(name);
             }
         }

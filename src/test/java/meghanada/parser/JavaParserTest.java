@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 
 import static meghanada.config.Config.timeIt;
-import static meghanada.config.Config.traceIt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -1020,6 +1019,33 @@ public class JavaParserTest extends GradleTestBase {
     }
 
     @Test
+    public void testParseGenInner2() throws Exception {
+        JavaSource source = timeIt(() -> {
+            JavaParser parser = new JavaParser();
+            return parser.parse(new File("src/test/java/meghanada/GenericInnerClass2.java"));
+        });
+
+        TypeScope typeScope1 = source.getTypeScopes().get(0);
+        List<MemberDescriptor> result1 = typeScope1.getMemberDescriptors();
+        String type1 = typeScope1.getType();
+        assertEquals("GenericInnerClass2$ABC$DEF", type1);
+        assertEquals(1, result1.size());
+
+        TypeScope typeScope2 = source.getTypeScopes().get(1);
+        List<MemberDescriptor> result2 = typeScope2.getMemberDescriptors();
+        String type2 = typeScope2.getType();
+        assertEquals("GenericInnerClass2$ABC", type2);
+        assertEquals(1, result2.size());
+
+        TypeScope typeScope3 = source.getTypeScopes().get(2);
+        List<MemberDescriptor> result3 = typeScope3.getMemberDescriptors();
+        String type3 = typeScope3.getType();
+        assertEquals("GenericInnerClass2", type3);
+        assertEquals(0, result3.size());
+
+    }
+
+    @Test
     public void testParseGenMethod1() throws Exception {
         JavaSource source = timeIt(() -> {
             JavaParser parser = new JavaParser();
@@ -1052,7 +1078,7 @@ public class JavaParserTest extends GradleTestBase {
 
     @Test
     public void testParseGenMethodCall2() throws Exception {
-        JavaSource source = traceIt(() -> {
+        JavaSource source = timeIt(() -> {
             JavaParser parser = new JavaParser();
             return parser.parse(new File("src/test/java/meghanada/GenericMethodCall2.java"));
         });

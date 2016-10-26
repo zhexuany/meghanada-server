@@ -224,7 +224,7 @@ public class EmacsServer implements Server {
                 })
                 .when(headTail(eq("lv"), any())).get(args -> {
                     // lv : Local variable
-                    // usage: lv file line
+                    // usage: lv classFile line
                     handler.localVariable(args.get(0), args.get(1));
                     return true;
                 })

@@ -124,7 +124,7 @@ public class FileSystemWatcher {
         @Override
         public String toString() {
             return MoreObjects.toStringHelper(this)
-                    .add("file", file)
+                    .add("classFile", file)
                     .toString();
         }
     }

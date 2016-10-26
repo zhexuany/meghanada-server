@@ -261,7 +261,7 @@ public class Session {
     }
 
     private void setupSubscribes() throws IOException {
-        // subscribe file watch
+        // subscribe classFile watch
         this.sessionEventBus.subscribeFileWatch();
         this.sessionEventBus.subscribeParse();
         this.sessionEventBus.subscribeCompile();
@@ -318,7 +318,7 @@ public class Session {
     }
 
     public synchronized Collection<? extends CandidateUnit> completionAt(String path, int line, int column, String prefix) throws IOException, ClassNotFoundException, ExecutionException {
-        // java file only
+        // java classFile only
         File file = normalize(path);
         if (!JavaSource.isJavaFile(file)) {
             return Collections.emptyList();
@@ -349,7 +349,7 @@ public class Session {
     }
 
     public synchronized LocalVariable localVariable(final String path, final int line) throws ExecutionException {
-        // java file only
+        // java classFile only
         File file = normalize(path);
         if (!JavaSource.isJavaFile(file)) {
             return new LocalVariable("", Collections.emptyList());
@@ -358,7 +358,7 @@ public class Session {
     }
 
     public synchronized boolean addImport(String path, String fqcn) throws ExecutionException {
-        // java file only
+        // java classFile only
         File file = normalize(path);
         if (!JavaSource.isJavaFile(file)) {
             return false;
@@ -370,7 +370,7 @@ public class Session {
     }
 
     public synchronized List<String> optimizeImport(String path) throws ExecutionException {
-        // java file only
+        // java classFile only
         File file = normalize(path);
         if (!JavaSource.isJavaFile(file)) {
             return Collections.emptyList();
@@ -381,7 +381,7 @@ public class Session {
     }
 
     public synchronized Map<String, List<String>> searchMissingImport(String path) throws ExecutionException {
-        // java file only
+        // java classFile only
         File file = normalize(path);
         if (!JavaSource.isJavaFile(file)) {
             return Collections.emptyMap();
@@ -400,7 +400,7 @@ public class Session {
     }
 
     public synchronized boolean parseFile(final String path) throws ExecutionException {
-        // java file only
+        // java classFile only
         final File file = normalize(path);
         if (!JavaSource.isJavaFile(file)) {
             return false;
@@ -410,7 +410,7 @@ public class Session {
     }
 
     public synchronized CompileResult compileFile(final String path) throws IOException {
-        // java file only
+        // java classFile only
         final File file = normalize(path);
         return currentProject.compileFile(file, true);
     }

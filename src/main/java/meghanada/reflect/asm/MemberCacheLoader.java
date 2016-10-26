@@ -92,7 +92,7 @@ class MemberCacheLoader extends CacheLoader<String, List<MemberDescriptor>> {
             // try inner class
             classFile = this.classFileMap.get(ClassNameUtils.replaceInnerMark(fqcn));
             if (classFile == null) {
-                log.debug("Missing FQCN:{}'s file is null", fqcn);
+                log.debug("Missing FQCN:{}'s classFile is null", fqcn);
                 return Collections.emptyList();
             }
         }
@@ -211,7 +211,7 @@ class MemberCacheLoader extends CacheLoader<String, List<MemberDescriptor>> {
                     }
                 });
             } finally {
-                log.trace("load from cache file:{} elapsed:{}", fqcn, stopwatch.stop());
+                log.trace("load from cache classFile:{} elapsed:{}", fqcn, stopwatch.stop());
             }
         }
         return null;

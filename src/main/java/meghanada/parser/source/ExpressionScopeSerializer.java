@@ -15,7 +15,7 @@ public class ExpressionScopeSerializer extends Serializer<ExpressionScope> {
 
     @Override
     public void write(Kryo kryo, Output output, ExpressionScope scope) {
-        // 1. name
+        // 1. className
         output.writeString(scope.name);
         // 2. range
         final Range range = scope.range;
@@ -58,7 +58,7 @@ public class ExpressionScopeSerializer extends Serializer<ExpressionScope> {
 
     @Override
     public ExpressionScope read(final Kryo kryo, final Input input, final Class<ExpressionScope> type) {
-        // 1. name
+        // 1. className
         final String name = input.readString();
         // 2. range
         final Integer l1 = input.readInt(true);

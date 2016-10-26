@@ -38,7 +38,7 @@ public class CompileResult {
                     .map(Object::toString)
                     .collect(Collectors.joining("\n"));
         } else {
-            return "is java file?";
+            return "is java classFile?";
         }
     }
 

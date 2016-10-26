@@ -66,7 +66,7 @@ public class FieldDescriptor extends MemberDescriptor implements Serializable {
     public String toString() {
         return MoreObjects.toStringHelper(this)
                 .add("declaringClass", declaringClass)
-                .add("name", name)
+                .add("className", name)
                 .add("returnType", returnType)
                 .add("info", getDeclaration())
                 .toString();

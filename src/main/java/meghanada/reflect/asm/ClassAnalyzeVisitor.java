@@ -47,14 +47,14 @@ class ClassAnalyzeVisitor extends ClassVisitor {
 
     @Override
     public void visit(int api, int access, String name, String signature, String superClass, String[] interfaces) {
-        // log.debug("Name:{}", name);
+        // log.debug("Name:{}", className);
         // call class
         this.access = access;
         final boolean isInterface = (Opcodes.ACC_INTERFACE & access) == Opcodes.ACC_INTERFACE;
-        // log.debug("name {} sig {} IF:{}", name, signature, isInterface);
+        // log.debug("className {} sig {} IF:{}", className, signature, isInterface);
         if (signature != null) {
             // generics
-            // log.debug("name {} sig {}", name, signature);
+            // log.debug("className {} sig {}", className, signature);
             final SignatureReader signatureReader = new SignatureReader(signature);
             ClassSignatureVisitor classSignatureVisitor = new ClassSignatureVisitor(this.className, isInterface);
             signatureReader.accept(classSignatureVisitor);
@@ -83,7 +83,7 @@ class ClassAnalyzeVisitor extends ClassVisitor {
             return super.visitMethod(access, name, desc, sig, exceptions);
         }
 
-        // log.debug("Method Name:{}", name);
+        // log.debug("Method Name:{}", className);
         if (name.contains("$")) {
             return null;
         }
@@ -131,9 +131,9 @@ class ClassAnalyzeVisitor extends ClassVisitor {
     }
 
 //    @Override
-//    public void visitInnerClass(String name, String outerName, String innerName, int access) {
-//        log.debug("visitInnerClass {} {} {} {}", this.className, name, outerName, innerName);
-//        super.visitInnerClass(name, outerName, innerName, access);
+//    public void visitInnerClass(String className, String outerName, String innerName, int access) {
+//        log.debug("visitInnerClass {} {} {} {}", this.className, className, outerName, innerName);
+//        super.visitInnerClass(className, outerName, innerName, access);
 //    }
 
 //    @Override
@@ -159,7 +159,7 @@ class ClassAnalyzeVisitor extends ClassVisitor {
                     .setTypeMap(this.getTypeMap())
                     .parseSignature();
         }
-        // log.debug("Field Name:{}", name);
+        // log.debug("Field Name:{}", className);
         if ((Opcodes.ACC_PRIVATE & access) == 0) {
             return new FieldAnalyzeVisitor(this,
                     access,

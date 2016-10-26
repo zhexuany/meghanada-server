@@ -11,7 +11,7 @@ public class GenericMethodCall1 {
     private static Logger log = LogManager.getLogger(GenericMethodCall1.class);
 
     public void test1(String name) {
-        final EntryMessage entryMessage = log.traceEntry("name={}", name);
+        final EntryMessage entryMessage = log.traceEntry("className={}", name);
         Map<String, String> map = new HashMap<>();
         if (map.containsKey(name)) {
             final String s = map.get(name).concat("-A");

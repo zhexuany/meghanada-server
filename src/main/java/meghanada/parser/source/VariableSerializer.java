@@ -11,7 +11,7 @@ public class VariableSerializer extends Serializer<Variable> {
 
     @Override
     public void write(Kryo kryo, Output output, Variable symbol) {
-        // 1. name
+        // 1. className
         output.writeString(symbol.name);
         // 2. fqcn
         output.writeString(symbol.fqcn);
@@ -39,7 +39,7 @@ public class VariableSerializer extends Serializer<Variable> {
 
     @Override
     public Variable read(Kryo kryo, Input input, Class<Variable> type) {
-        // 1. name
+        // 1. className
         final String name = input.readString();
         // 2. fqcn
         final String fqcn = input.readString();
