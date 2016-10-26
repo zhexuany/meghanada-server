@@ -503,4 +503,15 @@ public class CachedASMReflectorTest extends GradleTestBase {
         assertEquals(true, b);
     }
 
+    @Test
+    public void testMatchClass4() throws Exception {
+        CachedASMReflector cachedASMReflector = CachedASMReflector.getInstance();
+        cachedASMReflector.addClasspath(getOutputDir());
+        cachedASMReflector.createClassIndexes();
+        String target = "java.lang.Class[]";
+        String clazz = "java.lang.Class[]";
+        final boolean b = cachedASMReflector.matchClass(target, clazz);
+        assertEquals(true, b);
+    }
+
 }

@@ -9,6 +9,7 @@ import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.imports.*;
 import com.github.javaparser.ast.stmt.*;
+import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.TypeParameter;
@@ -26,7 +27,6 @@ import org.apache.logging.log4j.message.EntryMessage;
 import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
@@ -349,13 +349,6 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             }
         });
         log.traceExit(entryMessage);
-    }
-
-    @Override
-    public void visit(final LambdaExpr node, final JavaSource arg) {
-        log.trace("LambdaExpr:{} {}", node, node.isParametersEnclosed());
-        log.trace("LambdaExpr Parent:{}", node.getParentNode().getClass());
-        super.visit(node, arg);
     }
 
     @Override
@@ -787,10 +780,17 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
         source.getCurrentType().ifPresent(typeScope -> source.getCurrentBlock(typeScope).ifPresent(blockScope -> {
             for (final VariableDeclarator v : node.getVariables()) {
-                String type = v.getType().toString();
+                Type vType = v.getType();
+                String type = vType.toString();
+
+                // TODO need ?
+                if (vType instanceof ArrayType) {
+
+                } else {
+
+                }
                 final VariableDeclaratorId declaratorId = v.getId();
                 final String name = declaratorId.getName();
-                type = type + node.getArrayBracketPairsAfterElementType().toString();
 
                 fqcnSolver.solveFQCN(type, source).ifPresent(fqcn -> {
                     log.trace("variableDeclarationExpr fqcn={}", fqcn);
@@ -946,65 +946,71 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         return Optional.of(methodSignature);
     }
 
-    private Stream<MemberDescriptor> reflectMethodStream(final String className,
-                                                         final String name,
-                                                         final int argLen,
-                                                         final MethodSignature sig) {
+    private Optional<MemberDescriptor> getMethodWithTypeCheck(final String className,
+                                                              final String name,
+                                                              final int argLen,
+                                                              final MethodSignature sig) {
 
         final CachedASMReflector reflector = CachedASMReflector.getInstance();
-        return reflector.reflect(className)
-                .stream()
+        final List<MemberDescriptor> methods = reflector.reflectMethodStream(className, name, argLen)
+                .collect(Collectors.toList());
+
+        // shortcut
+        if (methods.isEmpty()) {
+            // no type check !
+            return Optional.empty();
+        }
+        if (methods.size() == 1) {
+            // no type check !
+            return Optional.of(methods.get(0).clone());
+        }
+
+        return methods.stream()
                 .filter(m -> {
-                    final String mName = m.getName();
                     final List<String> parameters = m.getParameters();
-                    if (mName.equals(name)
-                            && m.matchType(CandidateUnit.MemberType.METHOD)
-                            && parameters.size() == argLen) {
+                    final MethodDescriptor md = (MethodDescriptor) m;
+                    final String formalType = md.formalType;
+                    if (formalType != null) {
+                        final String mdSig = m.getMethodSignature();
+                        final int start2 = mdSig.indexOf("[");
+                        final int end2 = mdSig.lastIndexOf("]");
+                        final Iterable<String> split2 = Splitter.on(",").split(mdSig.substring(start2 + 1, end2));
+                        final Set<String> typeParameters = md.getTypeParameters();
 
-                        final MethodDescriptor md = (MethodDescriptor) m;
-                        final String formalType = md.formalType;
-                        if (formalType != null) {
-                            final String mdSig = m.getMethodSignature();
-                            final int start2 = mdSig.indexOf("[");
-                            final int end2 = mdSig.lastIndexOf("]");
-                            final Iterable<String> split2 = Splitter.on(",").split(mdSig.substring(start2 + 1, end2));
-                            final Set<String> typeParameters = md.getTypeParameters();
-
-                            boolean match = true;
-                            final Iterator<String> iterator2 = split2.iterator();
-                            for (final Iterator<String> iterator1 = sig.parameters.iterator(); iterator1.hasNext(); ) {
-                                final String next1 = iterator1.next().trim();
-                                final String next2 = iterator2.next().trim();
-
-                                if (next2.startsWith(ClassNameUtils.FORMAL_TYPE_VARIABLE_MARK)) {
-                                    final String key = next2.substring(2);
-                                    if (typeParameters.contains(key)) {
-                                        md.getTypeParameterMap().put(key, next2);
-                                        continue;
-                                    }
+                        boolean match = true;
+                        final Iterator<String> iterator2 = split2.iterator();
+                        for (final Iterator<String> iterator1 = sig.parameters.iterator(); iterator1.hasNext(); ) {
+                            final String next1 = iterator1.next().trim();
+                            final String next2 = iterator2.next().trim();
+                            if (next2.startsWith(ClassNameUtils.FORMAL_TYPE_VARIABLE_MARK)) {
+                                final String key = next2.substring(2);
+                                if (typeParameters.contains(key)) {
+                                    md.getTypeParameterMap().put(key, next2);
+                                    continue;
+                                }
+                                match = false;
+                            } else {
+                                if (!next1.equals(next2)) {
                                     match = false;
-                                } else {
-                                    if (!next1.equals(next2)) {
-                                        match = false;
-                                    }
                                 }
                             }
-                            return match;
                         }
-
-                        boolean allMatch = true;
-                        for (int i = 0; i < parameters.size(); i++) {
-                            final String target = sig.parameters.get(i);
-                            final String clazz = parameters.get(i);
-                            if (!reflector.matchClass(target, clazz)) {
-                                allMatch = false;
-                                break;
-                            }
-                        }
-                        return allMatch;
+                        return match;
                     }
-                    return false;
-                });
+
+                    boolean allMatch = true;
+                    for (int i = 0; i < parameters.size(); i++) {
+                        final String target = sig.parameters.get(i);
+                        final String clazz = parameters.get(i);
+                        if (!reflector.matchClass(target, clazz)) {
+                            allMatch = false;
+                            break;
+                        }
+                    }
+                    return allMatch;
+                })
+                .map(MemberDescriptor::clone)
+                .findFirst();
     }
 
     private Optional<MemberDescriptor> getCallingMethod(final JavaSource source,
@@ -1016,9 +1022,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final EntryMessage entryMessage = log.traceEntry("getCallingMethod class={} name={} signature={}",
                 declaringClass, name, methodSignature);
         final Optional<MemberDescriptor> result = source.getCurrentType().map(ts -> {
-            return this.reflectMethodStream(declaringClass, name, size, methodSignature)
-                    .map(MemberDescriptor::clone)
-                    .findFirst()
+            return this.getMethodWithTypeCheck(declaringClass, name, size, methodSignature)
                     .orElseGet(() -> {
                         // get from static import
                         final CachedASMReflector reflector = CachedASMReflector.getInstance();

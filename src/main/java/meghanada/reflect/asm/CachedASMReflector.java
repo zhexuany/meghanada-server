@@ -598,8 +598,15 @@ public class CachedASMReflector {
             final String returnType = classIndex.getReturnType();
             final HashSet<String> classSet = new HashSet<>(classIndex.supers);
             classSet.add(returnType);
+
             final ClassName className1 = new ClassName(clazz);
-            return classSet.contains(className1.getName());
+            String name1 = className1.getName();
+
+            if (this.globalClassIndex.containsKey(name1)) {
+                final ClassIndex classIndex1 = this.globalClassIndex.get(name);
+                name1 = classIndex1.getReturnType();
+            }
+            return classSet.contains(name1);
         }
         return false;
     }

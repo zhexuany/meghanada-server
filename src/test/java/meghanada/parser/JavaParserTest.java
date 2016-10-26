@@ -241,7 +241,7 @@ public class JavaParserTest extends GradleTestBase {
         List<MemberDescriptor> result2 = typeScope2.getMemberDescriptors();
         String type2 = typeScope2.getFQCN();
         assertEquals("meghanada.parser.JavaSymbolAnalyzeVisitor", type2);
-        assertEquals(52, result2.size());
+        assertEquals(51, result2.size());
 
     }
 
@@ -1038,7 +1038,7 @@ public class JavaParserTest extends GradleTestBase {
 
     @Test
     public void testParseGenMethodCall1() throws Exception {
-        JavaSource source = traceIt(() -> {
+        JavaSource source = timeIt(() -> {
             JavaParser parser = new JavaParser();
             return parser.parse(new File("src/test/java/meghanada/GenericMethodCall1.java"));
         });
@@ -1048,6 +1048,20 @@ public class JavaParserTest extends GradleTestBase {
         String type1 = typeScope1.getType();
         assertEquals("GenericMethodCall1", type1);
         assertEquals(2, result1.size());
+    }
+
+    @Test
+    public void testParseGenMethodCall2() throws Exception {
+        JavaSource source = traceIt(() -> {
+            JavaParser parser = new JavaParser();
+            return parser.parse(new File("src/test/java/meghanada/GenericMethodCall2.java"));
+        });
+
+        TypeScope typeScope1 = source.getTypeScopes().get(0);
+        List<MemberDescriptor> result1 = typeScope1.getMemberDescriptors();
+        String type1 = typeScope1.getType();
+        assertEquals("GenericMethodCall2", type1);
+        assertEquals(1, result1.size());
     }
 
 }
