@@ -190,14 +190,8 @@ class FieldSignatureVisitor extends SignatureVisitor {
                 typeVariable = val;
             }
         } else {
-            if (this.classTypeParameters.contains(typeVariable)) {
-                // mark
-                this.getTopVisitor(this).typeParameters.add(typeVariable);
-                typeVariable = ClassNameUtils.CLASS_TYPE_VARIABLE_MARK + typeVariable;
-            } else {
-                this.getTopVisitor(this).typeParameters.add(typeVariable);
-                typeVariable = ClassNameUtils.FORMAL_TYPE_VARIABLE_MARK + typeVariable;
-            }
+            this.getTopVisitor(this).typeParameters.add(typeVariable);
+            typeVariable = ClassNameUtils.CLASS_TYPE_VARIABLE_MARK + typeVariable;
         }
 
         typeInfo = getTypeInfo(typeVariable);
@@ -236,9 +230,9 @@ class FieldSignatureVisitor extends SignatureVisitor {
 
     @Override
     public void visitFormalTypeParameter(final String name) {
-        final EntryMessage em = log.traceEntry("className={}", name);
+        final EntryMessage entryMessage = log.traceEntry("name={} formal-name={}", this.name, name);
         super.visitFormalTypeParameter(name);
-        log.traceExit(em);
+        log.traceExit(entryMessage);
     }
 
     @Override

@@ -39,13 +39,14 @@ class FieldAnalyzeVisitor extends FieldVisitor {
     }
 
     FieldAnalyzeVisitor parseSignature() {
-        final EntryMessage m = log.traceEntry("name={} fieldSignature={}", name, fieldSignature);
+        final EntryMessage m = log.traceEntry("className={} name={} fieldSignature={}", this.classAnalyzeVisitor.className, this.name, this.fieldSignature);
         boolean isStatic = (Opcodes.ACC_STATIC & this.access) > 0;
         SignatureReader signatureReader = new SignatureReader(this.fieldSignature);
         FieldSignatureVisitor visitor;
         if (isStatic) {
             visitor = new FieldSignatureVisitor(this.name, new ArrayList<>(2));
         } else {
+            // need extends classTypeParameters
             visitor = new FieldSignatureVisitor(this.name, this.classAnalyzeVisitor.classTypeParameters);
         }
         if (this.typeMap != null) {

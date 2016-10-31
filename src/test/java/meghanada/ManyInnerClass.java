@@ -70,6 +70,11 @@ public class ManyInnerClass<K, V> {
             // return parent class K
             return key;
         }
+
+        public <T> T getT(T t) {
+            return t;
+        }
+
     }
 
     class C<T> {

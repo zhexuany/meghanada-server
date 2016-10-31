@@ -36,11 +36,13 @@ class MethodSignatureVisitor extends SignatureVisitor {
     private MethodSignatureVisitor parent;
 
     private Map<String, String> typeMap;
+    private Map<String, TypeInfo> formalTypeMap;
     private boolean isFormalType;
+    private String formalTypeKey;
 
     MethodSignatureVisitor(final String name, final List<String> classTypeParameters) {
         super(Opcodes.ASM5);
-        final EntryMessage message = log.traceEntry("className={} classTypeParameters={}", name, classTypeParameters);
+        final EntryMessage message = log.traceEntry("name={} classTypeParameters={}", name, classTypeParameters);
         this.name = name;
         this.classTypeParameters = classTypeParameters;
         this.parameterTypes = new ArrayList<>(4);
@@ -51,11 +53,12 @@ class MethodSignatureVisitor extends SignatureVisitor {
 
     private MethodSignatureVisitor(String name, MethodSignatureVisitor parent) {
         super(Opcodes.ASM5);
-        final EntryMessage message = log.traceEntry("className={}", name);
+        final EntryMessage message = log.traceEntry("name={}", name);
         this.name = name;
         this.parent = parent;
         this.classTypeParameters = parent.classTypeParameters;
         this.typeMap = parent.typeMap;
+        this.formalTypeMap = parent.formalTypeMap;
         log.traceExit(message);
     }
 
@@ -95,7 +98,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
     @Override
     public void visitClassType(final String s) {
         final String className = ClassNameUtils.replaceSlash(s);
-        final EntryMessage message = log.traceEntry("current={} s={} className={} isClassBound={}", this.current, s, className, this.isClassBound);
+        final EntryMessage message = log.traceEntry("current={} s={} className={} isClassBound={} isFormalType={}", this.current, s, className, this.isClassBound, this.isFormalType);
 
         TypeInfo typeInfo = new TypeInfo(className, className);
 
@@ -129,19 +132,32 @@ class MethodSignatureVisitor extends SignatureVisitor {
         if (this.current == null) {
             this.current = typeInfo;
         }
+
+        if (this.isClassBound && this.isFormalType) {
+            final String name = this.current.name;
+            current.name = '<' + name
+                    + " extends "
+                    + className
+                    + '>';
+            log.trace("current.name={}", current.name);
+        }
         log.traceExit(message);
     }
 
     @Override
     public void visitFormalTypeParameter(final String s) {
-        final EntryMessage message = log.traceEntry("s={} current={}", s, this.current);
+        final EntryMessage message = log.traceEntry("name={} s={} current={}", name, s, this.current);
+        if (this.formalTypeMap == null) {
+            this.formalTypeMap = new HashMap<>(1);
+        }
         if (this.formalType == null) {
-            this.formalType = new TypeInfo("", "");
-            this.formalType.typeParameters = new ArrayList<>(4);
-            this.formalType.typeParameters.add(new TypeInfo(s, s));
+            this.formalType = new TypeInfo(s, s);
+            this.formalType.typeParameters = new ArrayList<>(1);
         } else {
             this.formalType.typeParameters.add(new TypeInfo(s, s));
         }
+        this.formalTypeKey = s;
+        this.formalTypeMap.put(s, this.formalType);
         log.traceExit(message);
     }
 
@@ -175,7 +191,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
 
     @Override
     public void visitTypeVariable(String typeVariable) {
-        final EntryMessage message = log.traceEntry("typeVariable={}", typeVariable);
+        final EntryMessage message = log.traceEntry("name={} typeVariable={} formalTypeMap={}", this.name, typeVariable, this.formalTypeMap);
         TypeInfo typeInfo;
         if (this.typeMap != null && typeMap.containsKey(typeVariable)) {
             String val = typeMap.get(typeVariable);
@@ -187,13 +203,12 @@ class MethodSignatureVisitor extends SignatureVisitor {
                 typeVariable = val;
             }
         } else {
-            if (this.classTypeParameters.contains(typeVariable)) {
-                // mark
-                this.getTopVisitor(this).typeParameters.add(typeVariable);
-                typeVariable = ClassNameUtils.CLASS_TYPE_VARIABLE_MARK + typeVariable;
-            } else {
+            if (this.formalTypeMap != null && this.formalTypeMap.containsKey(typeVariable)) {
                 this.getTopVisitor(this).typeParameters.add(typeVariable);
                 typeVariable = ClassNameUtils.FORMAL_TYPE_VARIABLE_MARK + typeVariable;
+            } else {
+                this.getTopVisitor(this).typeParameters.add(typeVariable);
+                typeVariable = ClassNameUtils.CLASS_TYPE_VARIABLE_MARK + typeVariable;
             }
         }
         typeInfo = getTypeInfo(typeVariable);
@@ -248,7 +263,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
 
     @Override
     public SignatureVisitor visitParameterType() {
-        final EntryMessage message = log.traceEntry("className={} current={}", this.name, this.current);
+        final EntryMessage message = log.traceEntry("name={} current={}", this.name, this.current);
         MethodSignatureVisitor visitor = new MethodSignatureVisitor(this.name, this);
         visitor.isParameter = true;
         log.traceExit(message);
@@ -257,7 +272,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
 
     @Override
     public SignatureVisitor visitReturnType() {
-        final EntryMessage message = log.traceEntry("className={} parameterTypes={}", this.name, this.parameterTypes);
+        final EntryMessage message = log.traceEntry("name={} parameterTypes={}", this.name, this.parameterTypes);
         MethodSignatureVisitor visitor = new MethodSignatureVisitor(this.name, this);
         visitor.isReturn = true;
         log.traceExit(message);
@@ -309,16 +324,18 @@ class MethodSignatureVisitor extends SignatureVisitor {
         if (this.isClassBound || this.isInterfaceBound) {
             assert this.parent != null;
             this.parent.formalType = this.current;
+            log.trace("formalType={}", this.parent.formalType);
         }
         log.traceExit(message);
     }
 
     @Override
     public SignatureVisitor visitClassBound() {
-        final EntryMessage message = log.traceEntry("current={}", this.current);
-        MethodSignatureVisitor visitor = new MethodSignatureVisitor(this.name, this);
+        final EntryMessage message = log.traceEntry("name={} formal={}", this.name, this.formalType);
+        final MethodSignatureVisitor visitor = new MethodSignatureVisitor(this.name, this);
         visitor.current = this.formalType;
         this.formalType = null;
+        visitor.formalTypeKey = this.formalTypeKey;
         visitor.isFormalType = true;
         visitor.isClassBound = true;
         log.traceExit(message);
