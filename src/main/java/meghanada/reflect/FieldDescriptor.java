@@ -55,7 +55,7 @@ public class FieldDescriptor extends MemberDescriptor implements Serializable {
         if (this.returnType != null) {
             final String rt = ClassNameUtils.replaceInnerMark(this.returnType);
             if (this.hasTypeParameters()) {
-                return super.renderTypeParameters(rt, false);
+                return super.renderTypeParameters(rt, true);
             }
             return rt;
         }

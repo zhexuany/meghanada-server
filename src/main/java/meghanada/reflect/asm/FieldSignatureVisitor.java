@@ -35,29 +35,29 @@ class FieldSignatureVisitor extends SignatureVisitor {
 
     FieldSignatureVisitor(final String name, final List<String> classTypeParameters) {
         super(Opcodes.ASM5);
-        final EntryMessage em = log.traceEntry("className={} classTypeParameters={}", name, classTypeParameters);
+        final EntryMessage em = log.traceEntry("name={} classTypeParameters={}", name, classTypeParameters);
         this.name = name;
         this.classTypeParameters = classTypeParameters;
         this.typeParameters = new HashSet<>(2);
-        log.traceExit(em);
         isInstance = false;
         isSuper = false;
         isExtends = false;
         holdArray = false;
+        log.traceExit(em);
     }
 
     private FieldSignatureVisitor(final String name, final FieldSignatureVisitor parent) {
         super(Opcodes.ASM5);
-        log.traceEntry("className={} parent={}", name, parent);
+        final EntryMessage entryMessage = log.traceEntry("name={} parent={}", name, parent);
         this.name = name;
         this.parent = parent;
         this.classTypeParameters = parent.classTypeParameters;
         this.typeMap = parent.typeMap;
-        log.traceExit();
         isInstance = false;
         isSuper = false;
         isExtends = false;
         holdArray = false;
+        log.traceExit(entryMessage);
     }
 
     @Override
@@ -177,7 +177,7 @@ class FieldSignatureVisitor extends SignatureVisitor {
 
     @Override
     public void visitTypeVariable(String typeVariable) {
-        final EntryMessage em = log.traceEntry("className={} typeVariable={} typeInfo={} current={}", this.name, typeVariable, this.typeInfo, this.currentType);
+        final EntryMessage em = log.traceEntry("name={} typeVariable={} current={}", this.name, typeVariable, this.currentType);
         TypeInfo typeInfo;
 
         if (this.typeMap != null && typeMap.containsKey(typeVariable)) {
@@ -221,6 +221,7 @@ class FieldSignatureVisitor extends SignatureVisitor {
                 this.currentType.push(typeInfo);
             }
         }
+        log.trace("name={} currentType={} typeInfo={}", this.name, this.currentType, this.typeInfo);
         log.traceExit(em);
     }
 

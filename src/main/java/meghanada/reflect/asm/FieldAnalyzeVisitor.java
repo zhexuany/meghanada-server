@@ -35,16 +35,16 @@ class FieldAnalyzeVisitor extends FieldVisitor {
             signature = sig;
         }
         this.fieldSignature = signature;
-        log.trace("fieldSignature={}", fieldSignature);
+        log.trace("name={} fieldSignature={}", name, fieldSignature);
     }
 
     FieldAnalyzeVisitor parseSignature() {
-        final EntryMessage m = log.traceEntry("fieldSignature={}", fieldSignature);
+        final EntryMessage m = log.traceEntry("name={} fieldSignature={}", name, fieldSignature);
         boolean isStatic = (Opcodes.ACC_STATIC & this.access) > 0;
         SignatureReader signatureReader = new SignatureReader(this.fieldSignature);
         FieldSignatureVisitor visitor;
         if (isStatic) {
-            visitor = new FieldSignatureVisitor(this.name, new ArrayList<>(4));
+            visitor = new FieldSignatureVisitor(this.name, new ArrayList<>(2));
         } else {
             visitor = new FieldSignatureVisitor(this.name, this.classAnalyzeVisitor.classTypeParameters);
         }
@@ -54,16 +54,18 @@ class FieldAnalyzeVisitor extends FieldVisitor {
 
         this.fieldSignatureVisitor = visitor;
         signatureReader.acceptType(fieldSignatureVisitor);
-        return log.traceExit(m, this);
+        log.traceExit(m);
+        return this;
     }
 
     @Override
     public void visitEnd() {
-        final EntryMessage m = log.traceEntry("fieldSignature={}", fieldSignature);
+        final EntryMessage m = log.traceEntry("name={} fieldSignature={}", name, fieldSignature);
         final String modifier = ASMReflector.toModifier(access, false);
         final String fqcn = fieldSignatureVisitor.getResult();
         final FieldDescriptor fd = new FieldDescriptor(this.classAnalyzeVisitor.className, this.name, modifier, fqcn);
         fd.typeParameters = fieldSignatureVisitor.getTypeParameters();
+        log.trace("fd={}", fd);
         this.classAnalyzeVisitor.getMembers().add(fd);
         log.traceExit(m);
     }

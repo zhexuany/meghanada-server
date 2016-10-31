@@ -8,11 +8,11 @@ import meghanada.reflect.MethodDescriptor;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import static meghanada.config.Config.debugIt;
-import static meghanada.config.Config.timeIt;
+import static meghanada.config.Config.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -437,4 +437,55 @@ public class ASMReflectorTest extends GradleTestBase {
         }
     }
 
+    @Test
+    public void testReflectInnerClass1() throws Exception {
+        final ASMReflector asmReflector = ASMReflector.getInstance();
+        final File file = getTestOutputDir();
+        final Map<ClassIndex, File> index = asmReflector.getClasses(file);
+
+        final String fqcn1 = "meghanada.ManyInnerClass$A";
+        final List<MemberDescriptor> memberDescriptors1 = traceIt(() -> {
+            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn1);
+            return asmReflector.reflectAll(info);
+        });
+
+        memberDescriptors1.forEach(md -> {
+            System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration() + " : " + md.returnType);
+        });
+
+        final String fqcn2 = "meghanada.ManyInnerClass$B";
+        final List<MemberDescriptor> memberDescriptors2 = traceIt(() -> {
+            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn2);
+            return asmReflector.reflectAll(info);
+        });
+
+        memberDescriptors2.forEach(md -> {
+            System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration() + " : " + md.returnType);
+        });
+
+//        final String fqcn3 = "meghanada.ManyInnerClass$C";
+//        final List<MemberDescriptor> memberDescriptors3 = traceIt(() -> {
+//            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn3);
+//            return asmReflector.reflectAll(info);
+//        });
+//
+//        memberDescriptors3.forEach(md -> {
+//            System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration() + " : " + md.returnType);
+//        });
+    }
+
+    private List<MemberDescriptor> refrect(String fqcn) throws IOException {
+        final ASMReflector asmReflector = ASMReflector.getInstance();
+        final File file = getTestOutputDir();
+        final Map<ClassIndex, File> index = asmReflector.getClasses(file);
+        final List<MemberDescriptor> memberDescriptors = traceIt(() -> {
+            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
+            return asmReflector.reflectAll(info);
+        });
+
+        memberDescriptors.forEach(md -> {
+            System.out.println(md.getDeclaringClass() + " # " + md.getDeclaration() + " # " + md.returnType);
+        });
+        return memberDescriptors;
+    }
 }

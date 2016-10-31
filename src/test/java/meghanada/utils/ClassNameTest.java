@@ -68,10 +68,10 @@ public class ClassNameTest extends GradleTestBase {
 
     @Test
     public void getName6() throws Exception {
-        ClassName className = new ClassName("meghanada.Gen9<K, V>$A");
+        ClassName className = new ClassName("meghanada.ManyInnerClass<K, V>$A");
         String name = className.getName();
-        final String replaceClassName = className.replaceClassName("meghanada.Gen9<K, V>$A");
-        assertEquals("meghanada.Gen9$A", name);
+        final String replaceClassName = className.replaceClassName("meghanada.ManyInnerClass<K, V>$A");
+        assertEquals("meghanada.ManyInnerClass$A", name);
     }
 
     @Test

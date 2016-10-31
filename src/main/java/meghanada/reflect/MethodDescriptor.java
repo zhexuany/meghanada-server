@@ -184,13 +184,12 @@ public class MethodDescriptor extends MemberDescriptor implements Serializable {
                 }
             }
         } else {
-
             for (final String entry : this.typeParameters) {
                 temp = ClassNameUtils.replace(temp, ClassNameUtils.CLASS_TYPE_VARIABLE_MARK + entry, ClassNameUtils.OBJECT_CLASS);
-                if (formalType) {
-                    // follow intellij
-                    temp = ClassNameUtils.replace(temp, ClassNameUtils.FORMAL_TYPE_VARIABLE_MARK + entry, ClassNameUtils.OBJECT_CLASS);
-                }
+                // if (formalType) {
+                // follow intellij
+                temp = ClassNameUtils.replace(temp, ClassNameUtils.FORMAL_TYPE_VARIABLE_MARK + entry, ClassNameUtils.OBJECT_CLASS);
+                //}
             }
 
             if (!this.modifier.contains("static ")) {

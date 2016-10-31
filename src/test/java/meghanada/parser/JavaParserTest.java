@@ -616,13 +616,13 @@ public class JavaParserTest extends GradleTestBase {
     public void testParseClass33() throws Exception {//
         JavaSource source = traceIt(() -> {
             JavaParser javaParser = new JavaParser();
-            return javaParser.parse(new File("./src/test/java/meghanada/Gen9.java"));
+            return javaParser.parse(new File("./src/test/java/meghanada/ManyInnerClass.java"));
         });
         assertNotNull(source);
         TypeScope typeScope = source.getTypeScopes().get(0);
         List<MemberDescriptor> result = typeScope.getMemberDescriptors();
         String type = typeScope.getFQCN();
-        assertEquals("meghanada.Gen9$A", type);
+        assertEquals("meghanada.ManyInnerClass$A", type);
         assertEquals(3, result.size());
     }
 

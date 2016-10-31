@@ -537,7 +537,7 @@ public class CachedASMReflectorTest extends GradleTestBase {
         reflector.createClassIndexes();
         reflector.createClassIndexes();
 
-        final String name = "meghanada.Gen9<String, Long>$A<String, Long>";
+        final String name = "meghanada.ManyInnerClass<String, Long>$A<String, Long>";
         final List<MemberDescriptor> collect = traceIt(() -> reflector.reflectStream(name)
                 .filter(md -> md.getType().equals("FIELD"))
                 .collect(Collectors.toList()));
