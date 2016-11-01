@@ -1,6 +1,6 @@
 package meghanada.reflect.asm;
 
-import com.google.common.base.Stopwatch;
+import com.google.common.base.Strings;
 import meghanada.GradleTestBase;
 import meghanada.reflect.ClassIndex;
 import meghanada.reflect.MemberDescriptor;
@@ -19,7 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 public class ASMReflectorTest extends GradleTestBase {
-    
+
     private static final Logger log = LogManager.getLogger(ASMReflectorTest.class);
 
     @Test
@@ -49,40 +49,29 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectInner1() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             String fqcn = "java.util.Map$Entry";
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
-            stopwatch.start();
-            System.out.println(info);
             List<MemberDescriptor> memberDescriptors = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
             assertEquals(18, memberDescriptors.size());
-            stopwatch.reset();
         }
     }
 
     @Test
     public void testReflectInner2() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             String fqcn = "java.util.Map.Entry";
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
 
-            System.out.println(info);
-
-            stopwatch.start();
             List<MemberDescriptor> memberDescriptors = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
 
-            memberDescriptors.forEach(m -> System.out.println(m.getDisplayDeclaration()));
+            memberDescriptors.forEach(m -> log.info("{}", m.getDisplayDeclaration()));
             assertEquals(18, memberDescriptors.size());
-            stopwatch.reset();
         }
 
     }
@@ -90,19 +79,15 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectWithGenerics1() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             String fqcn = "java.util.Map";
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
 
-            stopwatch.start();
-            List<MemberDescriptor> memberDescriptors = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
-            memberDescriptors.forEach(m -> System.out.println(m.getDisplayDeclaration()));
+            List<MemberDescriptor> memberDescriptors = timeIt(() -> asmReflector.reflectAll(info));
+            memberDescriptors.forEach(m -> log.info("{}", m.getDisplayDeclaration()));
             assertEquals(34, memberDescriptors.size());
-            stopwatch.reset();
 
             memberDescriptors.stream()
                     .filter(memberDescriptor -> memberDescriptor.getName().equals("entrySet"))
@@ -111,7 +96,7 @@ public class ASMReflectorTest extends GradleTestBase {
                             MethodDescriptor methodDescriptor = (MethodDescriptor) memberDescriptor;
                             methodDescriptor.getTypeParameterMap().put("K", "String");
                             methodDescriptor.getTypeParameterMap().put("V", "Long");
-                            System.out.println(memberDescriptor.getReturnType());
+                            log.info("{}", memberDescriptor.getReturnType());
                             assertEquals("java.util.Set<java.util.Map.Entry<String, Long>>", memberDescriptor.getReturnType());
                         }
                     });
@@ -121,19 +106,15 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectWithGenerics2() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             String fqcn = "java.util.Enumeration<? extends ZipEntry>";
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
 
-            stopwatch.start();
-            List<MemberDescriptor> memberDescriptors = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
-            memberDescriptors.forEach(m -> System.out.println(m.getDisplayDeclaration()));
+            List<MemberDescriptor> memberDescriptors = timeIt(() -> asmReflector.reflectAll(info));
+            memberDescriptors.forEach(m -> log.trace("{}", m.getDisplayDeclaration()));
             assertEquals(13, memberDescriptors.size());
-            stopwatch.reset();
 
         }
     }
@@ -141,19 +122,15 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectWithGenerics3() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             String fqcn = "java.util.Map<? extends String, ? extends Long>";
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
 
-            stopwatch.start();
-            List<MemberDescriptor> memberDescriptors = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
-            memberDescriptors.forEach(m -> System.out.println(m.getDisplayDeclaration()));
+            List<MemberDescriptor> memberDescriptors = timeIt(() -> asmReflector.reflectAll(info));
+            memberDescriptors.forEach(m -> log.info("{}", m.getDisplayDeclaration()));
             assertEquals(34, memberDescriptors.size());
-            stopwatch.reset();
 
         }
     }
@@ -161,29 +138,21 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectWithGenerics4() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
-        {
-            String fqcn = "com.google.common.cache.CacheBuilder<Object, Object>";
-            File jar = getJar("guava");
-            Map<ClassIndex, File> index = asmReflector.getClasses(jar);
-            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
+        String fqcn = "com.google.common.cache.CacheBuilder<Object, Object>";
+        File jar = getJar("guava");
+        Map<ClassIndex, File> index = asmReflector.getClasses(jar);
+        final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
 
-            stopwatch.start();
-            List<MemberDescriptor> memberDescriptors = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
-            memberDescriptors.forEach(m -> {
-                System.out.println(m.getDeclaration());
-                // System.out.println("Return: " + m.getRawReturnType());
-            });
-            assertEquals(61, memberDescriptors.size());
-            stopwatch.reset();
-        }
+        List<MemberDescriptor> memberDescriptors = asmReflector.reflectAll(info);
+        memberDescriptors.forEach(m -> {
+            log.info("{}", m.getDeclaration());
+        });
+        assertEquals(62, memberDescriptors.size());
     }
 
     @Test
     public void testReflectAll1() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
@@ -191,18 +160,13 @@ public class ASMReflectorTest extends GradleTestBase {
             String fqcn = "java.util.stream.Stream<java.util.List<java.lang.String>>";
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
 
-            stopwatch.start();
-            List<MemberDescriptor> memberDescriptors1 = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
-            System.out.println(memberDescriptors1.size());
+            List<MemberDescriptor> memberDescriptors1 = timeIt(() -> asmReflector.reflectAll(info));
+            assertEquals(58, memberDescriptors1.size());
             memberDescriptors1.forEach(md -> {
-                System.out.println(md.getDeclaration());
+                log.info("{}", md.getDeclaration());
             });
-            stopwatch.reset();
-            stopwatch.start();
-            List<MemberDescriptor> memberDescriptors2 = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
-            System.out.println(memberDescriptors2.size());
+            List<MemberDescriptor> memberDescriptors2 = timeIt(() -> asmReflector.reflectAll(info));
+            assertEquals(58, memberDescriptors2.size());
 
         }
     }
@@ -210,17 +174,13 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectAll2() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
 
             String fqcn = "java.lang.String";
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
-            System.out.println(info);
-            stopwatch.start();
-            List<MemberDescriptor> md = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
+            List<MemberDescriptor> md = timeIt(() -> asmReflector.reflectAll(info));
             assertEquals(100, md.size());
         }
     }
@@ -234,13 +194,12 @@ public class ASMReflectorTest extends GradleTestBase {
 
             String fqcn = "java.util.List";
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
-            System.out.println(info);
-            List<MemberDescriptor> memberDescriptors1 = debugIt(() -> {
+            List<MemberDescriptor> memberDescriptors1 = timeIt(() -> {
                 return asmReflector.reflectAll(info);
             });
             memberDescriptors1.sort((o1, o2) -> o1.getName().compareTo(o2.getName()));
             memberDescriptors1.forEach(memberDescriptor -> {
-                System.out.println(memberDescriptor.getDisplayDeclaration());
+                log.info("{}", memberDescriptor.getDisplayDeclaration());
             });
             assertEquals(41, memberDescriptors1.size());
         }
@@ -249,19 +208,15 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectAll4() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
 
             String fqcn = "java.util.function.Predicate";
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
-            System.out.println(info);
-            stopwatch.start();
-            List<MemberDescriptor> memberDescriptors = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
+            List<MemberDescriptor> memberDescriptors = timeIt(() -> asmReflector.reflectAll(info));
             assertEquals(16, memberDescriptors.size());
-            memberDescriptors.forEach(memberDescriptor -> System.out.println(memberDescriptor.getDeclaration()));
+            memberDescriptors.forEach(memberDescriptor -> log.trace(memberDescriptor.getDeclaration()));
         }
 
     }
@@ -269,8 +224,6 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectAll5() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
-        // Config.load().setDebug();
         {
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
@@ -278,14 +231,10 @@ public class ASMReflectorTest extends GradleTestBase {
             // Config.load().setDebug();
             String fqcn = "java.util.stream.Stream<java.util.stream.Stream<java.util.List<java.lang.String>>>";
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
-            System.out.println(info);
-            stopwatch.start();
-            List<MemberDescriptor> memberDescriptors1 = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
-            System.out.println(memberDescriptors1.size());
+            List<MemberDescriptor> memberDescriptors1 = timeIt(() -> asmReflector.reflectAll(info));
+            assertEquals(58, memberDescriptors1.size());
             memberDescriptors1.forEach(md -> {
-                // System.out.println(md.getDeclaration());
-                // System.out.println(md.declaration);
+                log.info("{} : {}", md.getDeclaringClass(), md.getDeclaration());
             });
 
         }
@@ -294,20 +243,16 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectAll6() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
 
             String fqcn = "java.util.jar.JarFile";
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
-            System.out.println(info);
-            stopwatch.start();
             List<MemberDescriptor> memberDescriptors1 = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
-            System.out.println(memberDescriptors1.size());
+            assertEquals(43, memberDescriptors1.size());
             memberDescriptors1.forEach(md -> {
-                System.out.println(md.getDeclaration());
+                log.info("{}", md.getDeclaration());
                 // System.out.println(md.declaration);
             });
 
@@ -317,20 +262,15 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectAll7() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             File jar = getJar("guava");
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
 
             String fqcn = "com.google.common.base.Joiner";
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
-            System.out.println(info);
-            stopwatch.start();
             List<MemberDescriptor> memberDescriptors1 = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
-            System.out.println(memberDescriptors1.size());
             memberDescriptors1.forEach(md -> {
-                System.out.println(md.getDeclaration());
+                log.info("{}", md.getDeclaration());
                 // System.out.println(md.declaration);
             });
 
@@ -349,95 +289,73 @@ public class ASMReflectorTest extends GradleTestBase {
         });
 
         memberDescriptors.forEach(md -> {
-            System.out.println(md.getDeclaringClass() + " # " + md.getDeclaration());
+            log.info("{} : {}", md.getDeclaringClass(), md.getDeclaration());
         });
     }
 
     @Test
     public void testGetReflectClass1() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             String fqcn = "java.util.Map";
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
 
-            stopwatch.start();
-            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
-            System.out.println(stopwatch.stop());
-            System.out.println(info);
+            final InheritanceInfo info = timeIt(() -> asmReflector.getReflectInfo(index, fqcn));
         }
     }
 
     @Test
     public void testGetReflectClass2() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             String fqcn = "java.util.stream.Stream";
             File jar = getRTJar();
 
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
 
-            stopwatch.start();
-            final InheritanceInfo info1 = asmReflector.getReflectInfo(index, fqcn);
-            System.out.println(stopwatch.stop());
-            System.out.println(info1);
-
-            stopwatch.reset();
-            stopwatch.start();
-            final InheritanceInfo info2 = asmReflector.getReflectInfo(index, fqcn);
-            System.out.println(stopwatch.stop());
-            System.out.println(info2);
+            final InheritanceInfo info1 = timeIt(() -> asmReflector.getReflectInfo(index, fqcn));
+            final InheritanceInfo info2 = timeIt(() -> asmReflector.getReflectInfo(index, fqcn));
         }
     }
 
     @Test
     public void testReflectInterface1() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             String fqcn = "com.google.common.eventbus.SubscriberExceptionHandler";
             File jar = getJar("guava");
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
 
-            stopwatch.start();
             List<MemberDescriptor> memberDescriptors = asmReflector.reflectAll(info);
-            System.out.println(stopwatch.stop());
             memberDescriptors.forEach(m -> {
-                System.out.println(m.getDeclaration());
-                System.out.println("Return: " + m.getRawReturnType());
+                log.info("{} : {}", m.getDeclaration(), m.getRawReturnType());
             });
             assertEquals(1, memberDescriptors.size());
-            stopwatch.reset();
         }
     }
 
     @Test
     public void testReflectAnnotation1() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createUnstarted();
         {
             String fqcn = "org.junit.Test";
             File jar = getJar("junit");
-            stopwatch.start();
             List<MemberDescriptor> memberDescriptors = timeIt(() -> {
                 Map<ClassIndex, File> index = asmReflector.getClasses(jar);
                 index.keySet().forEach(classIndex -> {
                     if (classIndex.isAnnotation) {
-                        System.out.println(classIndex);
+                        log.info("{}", classIndex);
                     }
                 });
                 final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
                 return asmReflector.reflectAll(info);
             });
-            System.out.println(stopwatch.stop());
             memberDescriptors.forEach(m -> {
-                System.out.println(m.getDeclaration());
+                log.trace("{}", m.getDeclaration());
             });
             assertEquals(2, memberDescriptors.size());
-            stopwatch.reset();
         }
     }
 
@@ -448,25 +366,23 @@ public class ASMReflectorTest extends GradleTestBase {
         final Map<ClassIndex, File> index = asmReflector.getClasses(file);
 
         final String fqcn1 = "meghanada.ManyInnerClass$A";
-        final List<MemberDescriptor> memberDescriptors1 = traceIt(() -> {
+        final List<MemberDescriptor> memberDescriptors1 = timeIt(() -> {
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn1);
             return asmReflector.reflectAll(info);
         });
 
         memberDescriptors1.forEach(md -> {
-            log.info("{} : {}", md.getDeclaringClass(), md.getDeclaration());
-            log.info("Return {}", md.getReturnType());
+            log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.getReturnType());
         });
 
         final String fqcn2 = "meghanada.ManyInnerClass$B";
-        final List<MemberDescriptor> memberDescriptors2 = traceIt(() -> {
+        final List<MemberDescriptor> memberDescriptors2 = timeIt(() -> {
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn2);
             return asmReflector.reflectAll(info);
         });
 
         memberDescriptors2.forEach(md -> {
-            log.info("{} : {}", md.getDeclaringClass(), md.getDeclaration());
-            log.info("Return {}", md.getReturnType());
+            log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.getReturnType());
         });
 
 //        final String fqcn3 = "meghanada.ManyInnerClass$C";
@@ -476,8 +392,39 @@ public class ASMReflectorTest extends GradleTestBase {
 //        });
 //
 //        memberDescriptors3.forEach(md -> {
-//            System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration() + " : " + md.returnType);
+//            log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.getReturnType());
+//            log.info("Return {} raw={}", md.getReturnType(), md.returnType);
+//            log.info("typeParameters={} map={}", md.typeParameters, md.typeParameterMap);
 //        });
+    }
+
+    @Test
+    public void testReflectInnerClass2() throws Exception {
+        final ASMReflector asmReflector = ASMReflector.getInstance();
+        final File file = getTestOutputDir();
+        final Map<ClassIndex, File> index = asmReflector.getClasses(file);
+
+        final String fqcn1 = "meghanada.HasInnerClass<String, Long>";
+        final List<MemberDescriptor> memberDescriptors1 = timeIt(() -> {
+            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn1);
+            return asmReflector.reflectAll(info);
+        });
+
+        log.info("{}", Strings.repeat("-", 80));
+        memberDescriptors1.forEach(md -> {
+            log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.returnType);
+        });
+
+        final String fqcn2 = "meghanada.HasInnerClass";
+        final List<MemberDescriptor> memberDescriptors2 = timeIt(() -> {
+            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn2);
+            return asmReflector.reflectAll(info);
+        });
+
+        log.info("{} : {}", Strings.repeat("-", 80));
+        memberDescriptors2.forEach(md -> {
+            log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.returnType);
+        });
     }
 
     private List<MemberDescriptor> refrect(String fqcn) throws IOException {

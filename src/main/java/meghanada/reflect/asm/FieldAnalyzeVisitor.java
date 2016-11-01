@@ -23,9 +23,9 @@ class FieldAnalyzeVisitor extends FieldVisitor {
     private FieldSignatureVisitor fieldSignatureVisitor;
     private Map<String, String> typeMap;
 
-    FieldAnalyzeVisitor(ClassAnalyzeVisitor classAnalyzeVisitor, int access, String name, String desc, String sig) {
+    FieldAnalyzeVisitor(final ClassAnalyzeVisitor visitor, int access, String name, String desc, String sig) {
         super(Opcodes.ASM5);
-        this.classAnalyzeVisitor = classAnalyzeVisitor;
+        this.classAnalyzeVisitor = visitor;
         this.access = access;
         this.name = name;
 
@@ -35,7 +35,7 @@ class FieldAnalyzeVisitor extends FieldVisitor {
             signature = sig;
         }
         this.fieldSignature = signature;
-        log.trace("name={} fieldSignature={}", name, fieldSignature);
+        log.trace("name={} fieldSignature={} visitor={}", name, fieldSignature, visitor);
     }
 
     FieldAnalyzeVisitor parseSignature() {
@@ -66,7 +66,6 @@ class FieldAnalyzeVisitor extends FieldVisitor {
         final String fqcn = fieldSignatureVisitor.getResult();
         final FieldDescriptor fd = new FieldDescriptor(this.classAnalyzeVisitor.className, this.name, modifier, fqcn);
         fd.typeParameters = fieldSignatureVisitor.getTypeParameters();
-        log.trace("fd={}", fd);
         this.classAnalyzeVisitor.getMembers().add(fd);
         log.traceExit(m);
     }

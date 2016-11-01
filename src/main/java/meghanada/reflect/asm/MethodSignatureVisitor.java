@@ -253,7 +253,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
     }
 
     private TypeInfo getTypeInfo(String typeVariable) {
-        log.traceEntry("typeVariable={}", typeVariable);
+        final EntryMessage entryMessage = log.traceEntry("typeVariable={}", typeVariable);
         TypeInfo typeInfo;
         if (isSuper) {
             typeInfo = new TypeInfo("? super " + typeVariable, "? super " + typeVariable);
@@ -262,7 +262,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
         } else {
             typeInfo = new TypeInfo(typeVariable, typeVariable);
         }
-        return log.traceExit(typeInfo);
+        return log.traceExit(entryMessage, typeInfo);
     }
 
     @Override
@@ -379,10 +379,12 @@ class MethodSignatureVisitor extends SignatureVisitor {
     }
 
     @Override
-    public void visitInnerClassType(String s) {
-        log.traceEntry("current={}", this.current);
+    public void visitInnerClassType(final String s) {
+        final EntryMessage entryMessage = log.traceEntry("name={} current={} s={}", this.name, this.current, s);
+        this.current = new TypeInfo(s, s, this.current);
         super.visitInnerClassType(s);
-        log.traceExit();
+        log.trace("current={}", this.current);
+        log.traceExit(entryMessage);
     }
 
     private MethodSignatureVisitor getTopVisitor(MethodSignatureVisitor visitor) {
@@ -430,7 +432,7 @@ class MethodSignatureVisitor extends SignatureVisitor {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                .add("className", name)
+                .add("name", name)
                 .add("parameterTypes", parameterTypes)
                 .add("typeParameters", typeParameters)
                 .add("current", current)

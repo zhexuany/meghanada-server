@@ -64,8 +64,8 @@ class ClassAnalyzeVisitor extends ClassVisitor {
                 this.classIndex.supers.add(ClassNameUtils.OBJECT_CLASS);
             }
         } else {
-            this.classTypeParameters = new ArrayList<>(4);
-            final List<String> supers = new ArrayList<>(4);
+            this.classTypeParameters = new ArrayList<>(2);
+            final List<String> supers = new ArrayList<>(2);
             if (superClass != null) {
                 final String superClassFQCN = ClassNameUtils.replaceSlash(superClass);
                 supers.add(superClassFQCN);

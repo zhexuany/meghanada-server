@@ -6,6 +6,8 @@ import meghanada.project.Project;
 import meghanada.project.ProjectDependency;
 import meghanada.project.gradle.GradleProject;
 import meghanada.reflect.asm.CachedASMReflector;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.BeforeClass;
 
 import java.io.File;
@@ -18,6 +20,7 @@ import java.util.stream.Collectors;
 
 public class GradleTestBase {
 
+    private static final Logger log = LogManager.getLogger(GradleTestBase.class);
     private static Project project;
 
     @BeforeClass
@@ -40,14 +43,13 @@ public class GradleTestBase {
         cachedASMReflector.addClasspath(getJars());
         final Stopwatch stopwatch = Stopwatch.createStarted();
         cachedASMReflector.createClassIndexes();
-        System.out.println("createClassIndexes elapsed:" + stopwatch.stop());
+        log.info("createClassIndexes elapsed:{}", stopwatch.stop());
     }
 
     protected static File getJar(String name) {
         return project.getDependencies()
                 .stream()
                 .map(pd -> {
-                    System.out.println(pd.getId());
                     if (pd.getId().contains(name)) {
                         return pd.getFile();
                     }

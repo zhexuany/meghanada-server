@@ -105,7 +105,8 @@ public class MethodDescriptor extends MemberDescriptor implements Serializable {
     }
 
     private String getConstructorDisplayDeclaration() {
-        String simpleName = ClassNameUtils.getSimpleName(this.name);
+        final String nm = ClassNameUtils.replaceInnerMark(this.name);
+        final String simpleName = ClassNameUtils.getSimpleName(nm);
 
         final StringBuilder sb = new StringBuilder(simpleName);
         sb.append('(');
@@ -124,7 +125,8 @@ public class MethodDescriptor extends MemberDescriptor implements Serializable {
     }
 
     private String getMethodDisplayDeclaration() {
-        final StringBuilder sb = new StringBuilder(ClassNameUtils.getSimpleName(this.returnType));
+        final String rt = ClassNameUtils.replaceInnerMark(this.returnType);
+        final StringBuilder sb = new StringBuilder(ClassNameUtils.getSimpleName(rt));
         sb.append(' ').append(this.name).append('(');
         return appendParameters(sb, true).append(')').toString();
     }

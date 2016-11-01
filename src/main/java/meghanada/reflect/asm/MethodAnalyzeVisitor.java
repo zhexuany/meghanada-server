@@ -50,9 +50,9 @@ class MethodAnalyzeVisitor extends MethodVisitor {
         this.name = name;
         this.exceptions = exceptions;
 
-        Type[] args = Type.getArgumentTypes(desc);
+        final Type[] args = Type.getArgumentTypes(desc);
         this.parameterNames = new String[args.length];
-        boolean isStatic = (Opcodes.ACC_STATIC & access) > 0;
+        final boolean isStatic = (Opcodes.ACC_STATIC & access) > 0;
         this.lvtSlotIndex = computeLvtSlotIndices(isStatic, args);
 
         String target = desc;
@@ -61,10 +61,6 @@ class MethodAnalyzeVisitor extends MethodVisitor {
         }
         this.methodSignature = target;
         this.interfaceMethod = this.classAnalyzeVisitor.getClassIndex().isInterface;
-
-        // log.trace("className:{} sig:{}", className, target);
-        // log.trace("classIndex:{}", classAnalyzeVisitor.getClassIndex().isInterface);
-        // log.debug("methodName {} desc {} sig {}", className, desc, signature);
         log.traceExit(entryMessage);
     }
 
@@ -98,7 +94,7 @@ class MethodAnalyzeVisitor extends MethodVisitor {
         final SignatureReader signatureReader = new SignatureReader(this.methodSignature);
         MethodSignatureVisitor visitor;
         if (isStatic) {
-            visitor = new MethodSignatureVisitor(this.name, new ArrayList<>(4));
+            visitor = new MethodSignatureVisitor(this.name, new ArrayList<>(2));
         } else {
             visitor = new MethodSignatureVisitor(this.name, this.classAnalyzeVisitor.classTypeParameters);
         }
@@ -118,54 +114,54 @@ class MethodAnalyzeVisitor extends MethodVisitor {
 
     @Override
     public AnnotationVisitor visitParameterAnnotation(int i, String s, boolean b) {
-        log.traceEntry("i={}, s={} b={}", i, s, b);
-        return log.traceExit(super.visitParameterAnnotation(i, s, b));
+        final EntryMessage entryMessage = log.traceEntry("i={}, s={} b={}", i, s, b);
+        return log.traceExit(entryMessage, super.visitParameterAnnotation(i, s, b));
     }
 
     @Override
     public void visitAttribute(Attribute attribute) {
-        log.traceEntry("attribute={}", attribute);
+        final EntryMessage entryMessage = log.traceEntry("attribute={}", attribute);
         super.visitAttribute(attribute);
-        log.traceExit();
+        log.traceExit(entryMessage);
     }
 
     @Override
     public void visitParameter(String s, int i) {
-        log.traceEntry("s={} i={}", s, i);
+        final EntryMessage entryMessage = log.traceEntry("s={} i={}", s, i);
         super.visitParameter(s, i);
-        log.traceExit();
+        log.traceExit(entryMessage);
     }
 
     @Override
     public AnnotationVisitor visitLocalVariableAnnotation(int i, TypePath typePath, Label[] labels, Label[] labels1, int[] ints, String s, boolean b) {
-        log.traceEntry("i={} s={}", i, s);
+        final EntryMessage entryMessage = log.traceEntry("i={} s={}", i, s);
         final AnnotationVisitor annotationVisitor = super.visitLocalVariableAnnotation(i, typePath, labels, labels1, ints, s, b);
-        return log.traceExit(annotationVisitor);
+        return log.traceExit(entryMessage, annotationVisitor);
     }
 
     @Override
     public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-        log.traceEntry("desc={} visible={}", desc);
-        return log.traceExit(super.visitAnnotation(desc, visible));
+        final EntryMessage entryMessage = log.traceEntry("desc={} visible={}", desc);
+        return log.traceExit(entryMessage, super.visitAnnotation(desc, visible));
     }
 
     @Override
     public void visitLocalVariable(String name, String description, String signature, Label start, Label end, int index) {
-        log.traceEntry("className={} description={} signature={} start={} end={} index={}", name, description, signature, start, end, index);
+        final EntryMessage entryMessage = log.traceEntry("className={} description={} signature={} start={} end={} index={}", name, description, signature, start, end, index);
         // boolean hasLvtInfo = true;
         for (int i = 0; i < this.lvtSlotIndex.length; i++) {
             if (this.lvtSlotIndex[i] == index) {
                 this.parameterNames[i] = name;
             }
         }
-        log.traceExit();
+        log.traceExit(entryMessage);
     }
 
     @Override
     public AnnotationVisitor visitTypeAnnotation(int typeRef, TypePath typePath, String desc, boolean visible) {
-        log.traceEntry("typeRef={} typePath={} desc={} visible={}", typeRef, typePath, desc, desc);
+        final EntryMessage entryMessage = log.traceEntry("typeRef={} typePath={} desc={} visible={}", typeRef, typePath, desc, desc);
         final AnnotationVisitor annotationVisitor = super.visitTypeAnnotation(typeRef, typePath, desc, visible);
-        return log.traceExit(annotationVisitor);
+        return log.traceExit(entryMessage, annotationVisitor);
     }
 
     @Override

@@ -13,25 +13,37 @@ class TypeInfo {
     boolean isArray;
     boolean variableArguments;
     String paramName;
-    String innerClass;
+    //TypeInfo innerClass;
+    private TypeInfo parent;
+    private boolean isInner;
 
-    TypeInfo(String name, String fqcn) {
+    TypeInfo(final String name, final String fqcn) {
         this.name = name;
         this.fqcn = fqcn;
         this.isArray = false;
         this.variableArguments = false;
     }
 
+    TypeInfo(final String name, final String fqcn, final TypeInfo parent) {
+        this(name, fqcn);
+        this.parent = parent;
+        this.isInner = true;
+    }
+
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder(name);
+        final StringBuilder sb = new StringBuilder();
+
+        if (this.isInner) {
+            sb.append(this.parent);
+            sb.append(ClassNameUtils.INNER_MARK);
+        }
+
+        sb.append(name);
+
         if (this.typeParameters != null && this.typeParameters.size() > 0) {
             sb.append("<");
             Joiner.on(", ").appendTo(sb, this.typeParameters).append(">");
-        }
-        if (innerClass != null) {
-            sb.append(ClassNameUtils.INNER_MARK);
-            sb.append(innerClass);
         }
         if (isArray) {
             sb.append("[]");
@@ -42,18 +54,21 @@ class TypeInfo {
         if (paramName != null) {
             sb.append(" ").append(paramName);
         }
+
         return sb.toString();
     }
 
     String getFQCN() {
-        StringBuilder sb = new StringBuilder(fqcn);
+        final StringBuilder sb = new StringBuilder();
+        if (this.isInner) {
+            sb.append(this.parent.getFQCN());
+            sb.append(ClassNameUtils.INNER_MARK);
+        }
+
+        sb.append(fqcn);
         if (this.typeParameters != null && this.typeParameters.size() > 0) {
             sb.append("<");
             Joiner.on(", ").appendTo(sb, this.typeParameters).append(">");
-        }
-        if (innerClass != null) {
-            sb.append(ClassNameUtils.INNER_MARK);
-            sb.append(innerClass);
         }
         if (isArray) {
             sb.append("[]");

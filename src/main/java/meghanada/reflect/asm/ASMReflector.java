@@ -247,10 +247,8 @@ class ASMReflector {
                         final String nameKey = md.getName() + "::" + md.getParameters().toString();
                         result.putIfAbsent(nameKey, md);
                     } else if (md.matchType(CandidateUnit.MemberType.CONSTRUCTOR)) {
-                        if (md.getDeclaringClass().equals(info.targetClass)) {
-                            final String declaration = md.getDeclaration();
-                            result.putIfAbsent(declaration, md);
-                        }
+                        final String declaration = md.getDeclaration();
+                        result.putIfAbsent(declaration, md);
                     } else {
                         result.putIfAbsent(md.getName(), md);
                     }
@@ -323,7 +321,7 @@ class ASMReflector {
             for (String nameWithTP : targetClasses) {
                 final boolean isSuper = !targetClass.equals(nameWithTP);
                 final String fqcn = ClassNameUtils.removeTypeParameter(nameWithTP);
-                final List<MemberDescriptor> members = getMembersFromClassFile(file, file, fqcn, false);
+                final List<MemberDescriptor> members = getMembersFromClassFile(file, file, fqcn, nameWithTP, false);
                 if (members != null) {
                     // 1 classFile
                     if (isSuper) {
@@ -335,27 +333,26 @@ class ASMReflector {
             return Collections.emptyList();
         } else if (file.isDirectory()) {
             return this.getClassFileStream(file)
-                    .map(wrapIO(f -> {
+                    .map(wrapIO(classFile -> {
 
                         final String rootPath = file.getCanonicalPath();
-                        final String path = f.getCanonicalPath();
-                        final String className = ClassNameUtils.replaceSlash(path.substring(rootPath.length() + 1, path.length() - 6));
+                        final String classFilePath = classFile.getCanonicalPath();
+                        final String className = ClassNameUtils.replaceSlash(classFilePath.substring(rootPath.length() + 1, classFilePath.length() - 6));
 
                         final Iterator<String> stringIterator = targetClasses.iterator();
                         while (stringIterator.hasNext()) {
-                            final String nameWithTP = stringIterator.next();
-                            final boolean isSuper = !targetClass.equals(nameWithTP);
-                            final String fqcn = ClassNameUtils.removeTypeParameter(nameWithTP);
+                            final String clsNameWithTP = stringIterator.next();
+                            final boolean isSuper = !targetClass.equals(clsNameWithTP);
+                            final String clsNameWithoutTP = ClassNameUtils.removeTypeParameter(clsNameWithTP);
 
-                            if (!className.equals(fqcn)) {
+                            if (!className.equals(clsNameWithoutTP)) {
                                 continue;
                             }
 
-                            final List<MemberDescriptor> members = getMembersFromClassFile(file, f, fqcn, false);
+                            final List<MemberDescriptor> members = this.getMembersFromClassFile(file, classFile, clsNameWithoutTP, clsNameWithTP, false);
                             if (members != null) {
-
                                 if (isSuper) {
-                                    replaceDescriptorsType(nameWithTP, members);
+                                    replaceDescriptorsType(clsNameWithTP, members);
                                 }
                                 // found
                                 stringIterator.remove();
@@ -425,7 +422,7 @@ class ASMReflector {
                     .orElse(Collections.emptyList());
 
         } else if (file.isFile() && file.getName().endsWith(".class")) {
-            final List<MemberDescriptor> members = getMembersFromClassFile(file, file, nameWithoutTP);
+            final List<MemberDescriptor> members = getMembersFromClassFile(file, file, nameWithoutTP, name);
             if (members != null) {
                 return members;
             }
@@ -433,23 +430,23 @@ class ASMReflector {
             return Files.walk(file.toPath())
                     .map(Path::toFile)
                     .filter(f -> f.isFile() && f.getName().endsWith(".class"))
-                    .map(wrapIO(f -> getMembersFromClassFile(file, f, nameWithoutTP)))
+                    .map(wrapIO(f -> getMembersFromClassFile(file, f, nameWithoutTP, name)))
                     .filter(descriptors -> descriptors != null && descriptors.size() > 0)
                     .findFirst().orElse(Collections.emptyList());
         }
         return Collections.emptyList();
     }
 
-    private List<MemberDescriptor> getMembersFromClassFile(File parent, File file, String fqcn) throws IOException {
-        return getMembersFromClassFile(parent, file, fqcn, true);
+    private List<MemberDescriptor> getMembersFromClassFile(File parent, File file, String fqcn, final String nameWithTP) throws IOException {
+        return getMembersFromClassFile(parent, file, fqcn, nameWithTP, true);
     }
 
-    private List<MemberDescriptor> getMembersFromClassFile(final File parent, final File file, String fqcn, boolean includeSuper) throws IOException {
+    private List<MemberDescriptor> getMembersFromClassFile(final File parent, final File file, String fqcn, final String nameWithTP, boolean includeSuper) throws IOException {
         try (final InputStream in = new FileInputStream(file)) {
             final ClassReader classReader = new ClassReader(in);
             final String className = ClassNameUtils.replaceSlash(classReader.getClassName());
             if (className.equals(fqcn)) {
-                final ClassAnalyzeVisitor cv = new ClassAnalyzeVisitor(className, className, false, true);
+                final ClassAnalyzeVisitor cv = new ClassAnalyzeVisitor(className, nameWithTP, false, true);
                 classReader.accept(cv, 0);
                 final List<MemberDescriptor> members = cv.getMembers();
 
