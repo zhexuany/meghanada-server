@@ -454,8 +454,8 @@ public class ASMReflectorTest extends GradleTestBase {
         });
 
         memberDescriptors1.forEach(md -> {
-            // System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration() + " : " + md.returnType);
-            System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration());
+            log.info("{} : {}", md.getDeclaringClass(), md.getDeclaration());
+            log.info("Return {}", md.getReturnType());
         });
 
         final String fqcn2 = "meghanada.ManyInnerClass$B";
@@ -465,8 +465,8 @@ public class ASMReflectorTest extends GradleTestBase {
         });
 
         memberDescriptors2.forEach(md -> {
-            // System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration() + " : " + md.returnType);
-            System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration());
+            log.info("{} : {}", md.getDeclaringClass(), md.getDeclaration());
+            log.info("Return {}", md.getReturnType());
         });
 
 //        final String fqcn3 = "meghanada.ManyInnerClass$C";
