@@ -135,10 +135,14 @@ class MethodSignatureVisitor extends SignatureVisitor {
 
         if (this.isClassBound && this.isFormalType) {
             final String name = this.current.name;
-            current.name = '<' + name
-                    + " extends "
-                    + className
-                    + '>';
+            if (className.equals(ClassNameUtils.OBJECT_CLASS)) {
+                current.name = '<' + name + '>';
+            } else {
+                current.name = '<' + name
+                        + " extends "
+                        + className
+                        + '>';
+            }
             log.trace("current.name={}", current.name);
         }
         log.traceExit(message);

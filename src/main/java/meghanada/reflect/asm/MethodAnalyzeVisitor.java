@@ -330,8 +330,8 @@ class MethodAnalyzeVisitor extends MethodVisitor {
                 this.hasDefault);
 
         descriptor.typeParameters = this.typeParameters;
-        log.trace("formalType={}", this.formalType);
         if (this.formalType != null) {
+            log.trace("name={} formalType={}", this.name, this.formalType.toString());
             descriptor.formalType = this.formalType.toString();
         }
         this.classAnalyzeVisitor.members.add(descriptor);

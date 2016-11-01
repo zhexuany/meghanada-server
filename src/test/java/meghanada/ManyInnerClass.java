@@ -71,8 +71,16 @@ public class ManyInnerClass<K, V> {
             return key;
         }
 
-        public <T> T getT(T t) {
+        public <T> T getT1(T t) {
             return t;
+        }
+
+        public <T extends String> T getT2(T t) {
+            return t;
+        }
+
+        public <K> K getFK(K k) {
+            return k;
         }
 
     }

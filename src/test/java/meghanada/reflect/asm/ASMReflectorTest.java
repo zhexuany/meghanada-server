@@ -5,6 +5,8 @@ import meghanada.GradleTestBase;
 import meghanada.reflect.ClassIndex;
 import meghanada.reflect.MemberDescriptor;
 import meghanada.reflect.MethodDescriptor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Test;
 
 import java.io.File;
@@ -17,6 +19,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 public class ASMReflectorTest extends GradleTestBase {
+    
+    private static final Logger log = LogManager.getLogger(ASMReflectorTest.class);
 
     @Test
     public void testGetInstance() throws Exception {
@@ -450,7 +454,8 @@ public class ASMReflectorTest extends GradleTestBase {
         });
 
         memberDescriptors1.forEach(md -> {
-            System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration() + " : " + md.returnType);
+            // System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration() + " : " + md.returnType);
+            System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration());
         });
 
         final String fqcn2 = "meghanada.ManyInnerClass$B";
@@ -460,7 +465,8 @@ public class ASMReflectorTest extends GradleTestBase {
         });
 
         memberDescriptors2.forEach(md -> {
-            System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration() + " : " + md.returnType);
+            // System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration() + " : " + md.returnType);
+            System.out.println(md.getDeclaringClass() + " : " + md.getDeclaration());
         });
 
 //        final String fqcn3 = "meghanada.ManyInnerClass$C";
