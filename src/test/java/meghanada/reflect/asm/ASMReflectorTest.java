@@ -79,28 +79,26 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectWithGenerics1() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        {
-            String fqcn = "java.util.Map";
-            File jar = getRTJar();
-            Map<ClassIndex, File> index = asmReflector.getClasses(jar);
-            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
+        String fqcn = "java.util.Map";
+        File jar = getRTJar();
+        Map<ClassIndex, File> index = asmReflector.getClasses(jar);
+        final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
 
-            List<MemberDescriptor> memberDescriptors = timeIt(() -> asmReflector.reflectAll(info));
-            memberDescriptors.forEach(m -> log.info("{}", m.getDisplayDeclaration()));
-            assertEquals(34, memberDescriptors.size());
+        List<MemberDescriptor> memberDescriptors = timeIt(() -> asmReflector.reflectAll(info));
+        memberDescriptors.forEach(m -> log.info("{}", m.getDisplayDeclaration()));
+        assertEquals(34, memberDescriptors.size());
 
-            memberDescriptors.stream()
-                    .filter(memberDescriptor -> memberDescriptor.getName().equals("entrySet"))
-                    .forEach(memberDescriptor -> {
-                        if (memberDescriptor instanceof MethodDescriptor) {
-                            MethodDescriptor methodDescriptor = (MethodDescriptor) memberDescriptor;
-                            methodDescriptor.getTypeParameterMap().put("K", "String");
-                            methodDescriptor.getTypeParameterMap().put("V", "Long");
-                            log.info("{}", memberDescriptor.getReturnType());
-                            assertEquals("java.util.Set<java.util.Map.Entry<String, Long>>", memberDescriptor.getReturnType());
-                        }
-                    });
-        }
+        memberDescriptors.stream()
+                .filter(memberDescriptor -> memberDescriptor.getName().equals("entrySet"))
+                .forEach(memberDescriptor -> {
+                    if (memberDescriptor instanceof MethodDescriptor) {
+                        MethodDescriptor methodDescriptor = (MethodDescriptor) memberDescriptor;
+                        methodDescriptor.getTypeParameterMap().put("K", "String");
+                        methodDescriptor.getTypeParameterMap().put("V", "Long");
+                        log.info("{}", memberDescriptor.getReturnType());
+                        assertEquals("java.util.Set<java.util.Map.Entry<String, Long>>", memberDescriptor.getReturnType());
+                    }
+                });
     }
 
     @Test
@@ -122,17 +120,14 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectWithGenerics3() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        {
-            String fqcn = "java.util.Map<? extends String, ? extends Long>";
-            File jar = getRTJar();
-            Map<ClassIndex, File> index = asmReflector.getClasses(jar);
-            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
+        String fqcn = "java.util.Map<? extends String, ? extends Long>";
+        File jar = getRTJar();
+        Map<ClassIndex, File> index = asmReflector.getClasses(jar);
+        final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
 
-            List<MemberDescriptor> memberDescriptors = timeIt(() -> asmReflector.reflectAll(info));
-            memberDescriptors.forEach(m -> log.info("{}", m.getDisplayDeclaration()));
-            assertEquals(34, memberDescriptors.size());
-
-        }
+        List<MemberDescriptor> memberDescriptors = timeIt(() -> asmReflector.reflectAll(info));
+        memberDescriptors.forEach(m -> log.info("{}", m.getDisplayDeclaration()));
+        assertEquals(34, memberDescriptors.size());
     }
 
     @Test
@@ -410,6 +405,7 @@ public class ASMReflectorTest extends GradleTestBase {
             return asmReflector.reflectAll(info);
         });
 
+        assertEquals(3, memberDescriptors1.size());
         log.info("{}", Strings.repeat("-", 80));
         memberDescriptors1.forEach(md -> {
             log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.returnType);
@@ -421,6 +417,7 @@ public class ASMReflectorTest extends GradleTestBase {
             return asmReflector.reflectAll(info);
         });
 
+        assertEquals(3, memberDescriptors2.size());
         log.info("{} : {}", Strings.repeat("-", 80));
         memberDescriptors2.forEach(md -> {
             log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.returnType);
