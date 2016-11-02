@@ -41,14 +41,32 @@ class ASMReflector {
             "netscape"
     };
 
+    private static final String[] defaultCacheClass = new String[]{
+            "java.lang.Object",
+            "java.lang.AutoCloseable",
+            "java.lang.Appendable",
+            "java.lang.CharSequence",
+            "java.lang.Cloneable",
+            "java.lang.Runnable",
+            "java.io.Closeable",
+            "java.io.DataInput",
+            "java.io.DataOutput",
+            "java.io.Serializable"
+    };
+
     private static Logger log = LogManager.getLogger(ASMReflector.class);
     private static ASMReflector asmReflector;
     private Set<String> allowClass = new HashSet<>();
+    private Set<String> cacheClass = new HashSet<>();
+    private Map<String, List<MemberDescriptor>> cache = new ConcurrentHashMap<>();
 
     private ASMReflector() {
         Config.load()
                 .getAllowClass()
                 .forEach(this::addAllowClass);
+        for (final String c : defaultCacheClass) {
+            cacheClass.add(c);
+        }
     }
 
     public static ASMReflector getInstance() {
@@ -237,7 +255,7 @@ class ASMReflector {
                 .flatMap(Collection::stream)
                 .collect(Collectors.groupingBy(md -> ClassNameUtils.removeTypeParameter(md.getDeclaringClass()), Collectors.toList()));
 
-        final Map<String, MemberDescriptor> result = new HashMap<>(64);
+        final Map<String, MemberDescriptor> result = new HashMap<>(32);
         info.inherit.forEach(clazz -> {
             final String key = ClassNameUtils.removeTypeParameter(clazz);
             final List<MemberDescriptor> list = collect.get(key);
@@ -265,6 +283,18 @@ class ASMReflector {
             final Enumeration<JarEntry> entries = jarFile.entries();
             final List<MemberDescriptor> results = new ArrayList<>(64);
 
+            final Iterator<String> preClassIterator = targetClasses.iterator();
+            while (preClassIterator.hasNext()) {
+                final String nameWithTP = preClassIterator.next();
+                if (nameWithTP != null) {
+                    final String nameWithoutTP = ClassNameUtils.removeTypeParameter(nameWithTP);
+                    if (this.cache.containsKey(nameWithoutTP)) {
+                        results.addAll(this.cache.get(nameWithoutTP));
+                        preClassIterator.remove();
+                    }
+                }
+            }
+
             while (entries.hasMoreElements()) {
                 if (targetClasses.isEmpty()) {
                     break;
@@ -287,14 +317,26 @@ class ASMReflector {
                         final String nameWithoutTP = ClassNameUtils.removeTypeParameter(nameWithTP);
 
                         if (className.equals(nameWithoutTP)) {
+
+                            if (this.cache.containsKey(nameWithoutTP)) {
+                                final List<MemberDescriptor> members = this.cache.get(nameWithoutTP);
+                                results.addAll(members);
+                                classIterator.remove();
+                                break;
+                            }
+
                             try (final InputStream in = jarFile.getInputStream(jarEntry)) {
                                 final ClassReader classReader = new ClassReader(in);
                                 final List<MemberDescriptor> members = this.getMemberFromJar(file, classReader, nameWithoutTP, nameWithTP);
                                 if (isSuper) {
-                                    replaceDescriptorsType(nameWithTP, members);
+                                    this.replaceDescriptorsType(nameWithTP, members);
                                 }
                                 results.addAll(members);
                                 classIterator.remove();
+
+                                if (this.cacheClass.contains(nameWithoutTP) || nameWithTP.equals(nameWithoutTP)) {
+                                    this.cache.putIfAbsent(nameWithoutTP, members);
+                                }
                                 break;
                             }
                         }
@@ -371,7 +413,8 @@ class ASMReflector {
     private void replaceDescriptorsType(final String nameWithTP, final List<MemberDescriptor> members) {
         members.forEach(m -> {
             final Iterator<String> classTypeIterator = ClassNameUtils.parseTypeParameter(nameWithTP).iterator();
-            for (String tp : m.getTypeParameters()) {
+            // TODO check all?
+            for (final String tp : m.getTypeParameters()) {
                 if (classTypeIterator.hasNext()) {
                     final String ct = classTypeIterator.next();
 

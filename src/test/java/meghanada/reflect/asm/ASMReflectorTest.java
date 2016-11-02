@@ -83,7 +83,7 @@ public class ASMReflectorTest extends GradleTestBase {
         File jar = getRTJar();
         Map<ClassIndex, File> index = asmReflector.getClasses(jar);
         final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
-
+        log.info("info={}", info);
         List<MemberDescriptor> memberDescriptors = timeIt(() -> asmReflector.reflectAll(info));
         memberDescriptors.forEach(m -> log.info("{}", m.getDisplayDeclaration()));
         assertEquals(34, memberDescriptors.size());
@@ -183,12 +183,14 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testReflectAll3() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
+
         {
             File jar = getRTJar();
             Map<ClassIndex, File> index = asmReflector.getClasses(jar);
 
             String fqcn = "java.util.List";
             final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
+            log.info("info={}", info);
             List<MemberDescriptor> memberDescriptors1 = timeIt(() -> {
                 return asmReflector.reflectAll(info);
             });
@@ -291,13 +293,11 @@ public class ASMReflectorTest extends GradleTestBase {
     @Test
     public void testGetReflectClass1() throws Exception {
         ASMReflector asmReflector = ASMReflector.getInstance();
-        {
-            String fqcn = "java.util.Map";
-            File jar = getRTJar();
-            Map<ClassIndex, File> index = asmReflector.getClasses(jar);
-
-            final InheritanceInfo info = timeIt(() -> asmReflector.getReflectInfo(index, fqcn));
-        }
+        String fqcn = "java.util.Map";
+        File jar = getRTJar();
+        Map<ClassIndex, File> index = asmReflector.getClasses(jar);
+        final InheritanceInfo info = timeIt(() -> asmReflector.getReflectInfo(index, fqcn));
+        log.info("info={}", info);
     }
 
     @Test
@@ -359,10 +359,16 @@ public class ASMReflectorTest extends GradleTestBase {
         final File file = getTestOutputDir();
 
         final String fqcn1 = "meghanada.ManyInnerClass$A";
-        final List<MemberDescriptor> memberDescriptors1 = refrect(fqcn1, file, false);
+        final List<MemberDescriptor> memberDescriptors1 = reflect(fqcn1, file, false);
+        assertEquals(14, memberDescriptors1.size());
 
         final String fqcn2 = "meghanada.ManyInnerClass$B";
-        final List<MemberDescriptor> memberDescriptors2 = refrect(fqcn2, file, false);
+        final List<MemberDescriptor> memberDescriptors2 = reflect(fqcn2, file, false);
+        assertEquals(18, memberDescriptors2.size());
+
+        final String fqcn3 = "meghanada.ManyInnerClass$C";
+        final List<MemberDescriptor> memberDescriptors3 = reflect(fqcn3, file, false);
+        assertEquals(15, memberDescriptors3.size());
 
 //        final String fqcn3 = "meghanada.ManyInnerClass$C";
 //        final List<MemberDescriptor> memberDescriptors3 = traceIt(() -> {
@@ -382,28 +388,32 @@ public class ASMReflectorTest extends GradleTestBase {
         final File file = getTestOutputDir();
 
         final String fqcn1 = "meghanada.HasInnerClass<String, Long>";
-        final List<MemberDescriptor> memberDescriptors1 = refrect(fqcn1, file, false);
-        assertEquals(3, memberDescriptors1.size());
+        final List<MemberDescriptor> memberDescriptors1 = reflect(fqcn1, file, false);
+        assertEquals(14, memberDescriptors1.size());
         log.info("{}", Strings.repeat("-", 80));
 
         final String fqcn2 = "meghanada.HasInnerClass";
-        final List<MemberDescriptor> memberDescriptors2 = refrect(fqcn2, file, false);
-        assertEquals(3, memberDescriptors2.size());
-        log.info("{} : {}", Strings.repeat("-", 80));
+        final List<MemberDescriptor> memberDescriptors2 = reflect(fqcn2, file, false);
+        assertEquals(14, memberDescriptors2.size());
+        log.info("{}", Strings.repeat("-", 80));
     }
 
-    private List<MemberDescriptor> refrect(String fqcn, File file, boolean trace) throws IOException {
+    private List<MemberDescriptor> reflect(String fqcn, File file, boolean trace) throws IOException {
         final ASMReflector asmReflector = ASMReflector.getInstance();
+        final File rtJar = getRTJar();
         final Map<ClassIndex, File> index = asmReflector.getClasses(file);
+        index.putAll(asmReflector.getClasses(rtJar));
         final List<MemberDescriptor> memberDescriptors;
         if (trace) {
             memberDescriptors = traceIt(() -> {
                 final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
+                log.info("info={}", info);
                 return asmReflector.reflectAll(info);
             });
         } else {
             memberDescriptors = timeIt(() -> {
                 final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
+                log.info("info={}", info);
                 return asmReflector.reflectAll(info);
             });
         }
