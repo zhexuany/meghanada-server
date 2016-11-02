@@ -64,6 +64,11 @@ class FieldAnalyzeVisitor extends FieldVisitor {
         final EntryMessage m = log.traceEntry("name={} fieldSignature={}", name, fieldSignature);
         final String modifier = ASMReflector.toModifier(access, false);
         final String fqcn = fieldSignatureVisitor.getResult();
+        if (modifier.equals("final") && this.name.equals("this$0")) {
+            // skip
+            log.traceExit(m);
+            return;
+        }
         final FieldDescriptor fd = new FieldDescriptor(this.classAnalyzeVisitor.className, this.name, modifier, fqcn);
         fd.typeParameters = fieldSignatureVisitor.getTypeParameters();
         this.classAnalyzeVisitor.getMembers().add(fd);

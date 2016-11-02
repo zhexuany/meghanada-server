@@ -356,29 +356,13 @@ public class ASMReflectorTest extends GradleTestBase {
 
     @Test
     public void testReflectInnerClass1() throws Exception {
-        final ASMReflector asmReflector = ASMReflector.getInstance();
         final File file = getTestOutputDir();
-        final Map<ClassIndex, File> index = asmReflector.getClasses(file);
 
         final String fqcn1 = "meghanada.ManyInnerClass$A";
-        final List<MemberDescriptor> memberDescriptors1 = timeIt(() -> {
-            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn1);
-            return asmReflector.reflectAll(info);
-        });
-
-        memberDescriptors1.forEach(md -> {
-            log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.getReturnType());
-        });
+        final List<MemberDescriptor> memberDescriptors1 = refrect(fqcn1, file, false);
 
         final String fqcn2 = "meghanada.ManyInnerClass$B";
-        final List<MemberDescriptor> memberDescriptors2 = timeIt(() -> {
-            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn2);
-            return asmReflector.reflectAll(info);
-        });
-
-        memberDescriptors2.forEach(md -> {
-            log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.getReturnType());
-        });
+        final List<MemberDescriptor> memberDescriptors2 = refrect(fqcn2, file, false);
 
 //        final String fqcn3 = "meghanada.ManyInnerClass$C";
 //        final List<MemberDescriptor> memberDescriptors3 = traceIt(() -> {
@@ -395,46 +379,36 @@ public class ASMReflectorTest extends GradleTestBase {
 
     @Test
     public void testReflectInnerClass2() throws Exception {
-        final ASMReflector asmReflector = ASMReflector.getInstance();
         final File file = getTestOutputDir();
-        final Map<ClassIndex, File> index = asmReflector.getClasses(file);
 
         final String fqcn1 = "meghanada.HasInnerClass<String, Long>";
-        final List<MemberDescriptor> memberDescriptors1 = timeIt(() -> {
-            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn1);
-            return asmReflector.reflectAll(info);
-        });
-
+        final List<MemberDescriptor> memberDescriptors1 = refrect(fqcn1, file, false);
         assertEquals(3, memberDescriptors1.size());
         log.info("{}", Strings.repeat("-", 80));
-        memberDescriptors1.forEach(md -> {
-            log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.returnType);
-        });
 
         final String fqcn2 = "meghanada.HasInnerClass";
-        final List<MemberDescriptor> memberDescriptors2 = timeIt(() -> {
-            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn2);
-            return asmReflector.reflectAll(info);
-        });
-
+        final List<MemberDescriptor> memberDescriptors2 = refrect(fqcn2, file, false);
         assertEquals(3, memberDescriptors2.size());
         log.info("{} : {}", Strings.repeat("-", 80));
-        memberDescriptors2.forEach(md -> {
-            log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.returnType);
-        });
     }
 
-    private List<MemberDescriptor> refrect(String fqcn) throws IOException {
+    private List<MemberDescriptor> refrect(String fqcn, File file, boolean trace) throws IOException {
         final ASMReflector asmReflector = ASMReflector.getInstance();
-        final File file = getTestOutputDir();
         final Map<ClassIndex, File> index = asmReflector.getClasses(file);
-        final List<MemberDescriptor> memberDescriptors = traceIt(() -> {
-            final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
-            return asmReflector.reflectAll(info);
-        });
-
+        final List<MemberDescriptor> memberDescriptors;
+        if (trace) {
+            memberDescriptors = traceIt(() -> {
+                final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
+                return asmReflector.reflectAll(info);
+            });
+        } else {
+            memberDescriptors = timeIt(() -> {
+                final InheritanceInfo info = asmReflector.getReflectInfo(index, fqcn);
+                return asmReflector.reflectAll(info);
+            });
+        }
         memberDescriptors.forEach(md -> {
-            System.out.println(md.getDeclaringClass() + " # " + md.getDeclaration() + " # " + md.returnType);
+            log.info("{} : {} : {}", md.getDeclaringClass(), md.getDeclaration(), md.returnType);
         });
         return memberDescriptors;
     }
