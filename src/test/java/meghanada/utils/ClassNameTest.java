@@ -138,6 +138,15 @@ public class ClassNameTest extends GradleTestBase {
     }
 
     @Test
+    public void replaceClassName8() throws Exception {
+        ClassName className = new ClassName("A<java.lang.Long, java.lang.Integer>$B<java.lang.Long, java.lang.Integer>");
+        final String simpleName = className.getName();
+        assertEquals("A$B", simpleName);
+        String replaced = className.replaceClassName("meghanada." + simpleName);
+        assertEquals("meghanada.A<java.lang.Long, java.lang.Integer>$B<java.lang.Long, java.lang.Integer>", replaced);
+    }
+
+    @Test
     public void toFQCN1() throws Exception {
         ClassName className = new ClassName("Map");
         String fqcn = className.toFQCN(null, null);

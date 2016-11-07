@@ -19,7 +19,11 @@ public final class ClassName {
 
     public ClassName(String name) {
         this.rawName = ClassNameUtils.vaArgsToArray(name);
-        this.classes = StringUtils.split(this.rawName, ClassNameUtils.INNER_MARK);
+        if (this.rawName.contains(ClassNameUtils.INNER_MARK)) {
+            this.classes = StringUtils.split(this.rawName, ClassNameUtils.INNER_MARK);
+        } else {
+            this.classes = StringUtils.split(this.rawName, ".");
+        }
 
         final int length = classes.length;
         this.typeIndex = new int[length];
@@ -99,9 +103,23 @@ public final class ClassName {
     }
 
     public String replaceClassName(final String name) {
+        if (this.classes.length == 1) {
+            if (this.typeIndex[0] >= 0) {
+                return name + this.rawName.substring(this.typeIndex[0]);
+            }
+            if (this.arrayIndex[0] >= 0) {
+                return name + this.rawName.substring(this.arrayIndex[0]);
+            }
+            return name;
+        }
+
         final String[] tmpClasses = StringUtils.split(name, ClassNameUtils.INNER_MARK);
         final int length = tmpClasses.length;
-        StringBuilder sb = new StringBuilder();
+
+        if (length != this.typeIndex.length) {
+            log.trace("classes={} typeIndex={} tmp={}", this.classes, this.typeIndex, tmpClasses);
+        }
+        final StringBuilder sb = new StringBuilder();
         for (int i = 0; i < length; i++) {
             final String tmpClass = tmpClasses[i];
             if (this.typeIndex[i] >= 0) {

@@ -4,6 +4,9 @@ import com.google.common.base.Stopwatch;
 import meghanada.GradleTestBase;
 import meghanada.reflect.CandidateUnit;
 import meghanada.reflect.MemberDescriptor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -27,7 +30,9 @@ import static org.junit.Assert.assertTrue;
 
 public class CachedASMReflectorTest extends GradleTestBase {
 
-    @org.junit.BeforeClass
+    private static final Logger log = LogManager.getLogger(ASMReflectorTest.class);
+
+    @BeforeClass
     public static void beforeClass() throws Exception {
         GradleTestBase.setupReflector();
     }
@@ -527,6 +532,17 @@ public class CachedASMReflectorTest extends GradleTestBase {
         assertEquals(true, innerName.isPresent());
         System.out.println(innerName);
         assertEquals("meghanada.GenericInnerClass2$ABC$DEF", innerName.get().className);
+    }
+
+    @Test
+    public void testToExistInnerClassName2() throws Exception {
+        CachedASMReflector cachedASMReflector = CachedASMReflector.getInstance();
+        cachedASMReflector.addClasspath(getOutputDir());
+        cachedASMReflector.addClasspath(getTestOutputDir());
+        cachedASMReflector.createClassIndexes();
+        final String name = "GenericInnerClass2.ABC.DEF";
+        final Optional<CachedASMReflector.ProjectClassInfo> innerName = timeIt(() -> cachedASMReflector.toExistInnerClassName(name));
+        assertEquals(false, innerName.isPresent());
     }
 
     @Test

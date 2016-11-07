@@ -38,7 +38,7 @@ public class JavaParserTest extends GradleTestBase {
 
     @Test
     public void testParseClass1() throws Exception {
-        JavaSource source = timeIt(() -> {
+        JavaSource source = traceIt(() -> {
             JavaParser parser = new JavaParser();
             return parser.parse(new File("./src/main/java/meghanada/watcher/FileSystemWatcher.java"));
         });

@@ -87,6 +87,7 @@ class MemberCacheLoader extends CacheLoader<String, List<MemberDescriptor>> {
         String path = ClassNameUtils.replace(fqcn, ".", File.separator);
         File cacheFilePath = new File(this.projectCache, this.javaVersion + "/member/" + path + ".dat");
 
+        log.trace("@className={} fqcn={}", className, fqcn);
         File classFile = this.classFileMap.get(fqcn);
         if (classFile == null) {
             // try inner class

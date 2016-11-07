@@ -6,6 +6,8 @@ import meghanada.GradleTestBase;
 import meghanada.reflect.CandidateUnit;
 import meghanada.reflect.asm.CachedASMReflector;
 import meghanada.session.JavaSourceLoader;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -13,11 +15,12 @@ import org.junit.Test;
 import java.io.File;
 import java.util.Collection;
 
-import static meghanada.config.Config.debugIt;
-import static meghanada.config.Config.timeIt;
+import static meghanada.config.Config.*;
 import static org.junit.Assert.assertEquals;
 
 public class JavaCompletionTest extends GradleTestBase {
+
+    private static final Logger log = LogManager.getLogger(JavaCompletionTest.class);
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -32,9 +35,9 @@ public class JavaCompletionTest extends GradleTestBase {
     public void testCompletion1() throws Exception {
         JavaCompletion completion = getCompletion1();
         File file = new File("./src/main/java/meghanada/compiler/SimpleJavaCompiler.java");
-        final Collection<? extends CandidateUnit> units = completion.completionAt(file, 0, 0, "*package");
+        final Collection<? extends CandidateUnit> units = traceIt(() -> completion.completionAt(file, 0, 0, "*package"));
         assertEquals(1, units.size());
-        units.forEach(a -> System.out.println(a.getDeclaration()));
+        units.forEach(a -> log.info("{}", a.getDeclaration()));
     }
 
     @Test
