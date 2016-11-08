@@ -180,12 +180,10 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final String name = node.getName();
         final EntryMessage entryMessage = log.traceEntry("ClassOrInterfaceType className={}", name);
 
-        node.getTypeArguments().ifPresent(list -> {
-            list.forEach(type -> {
-                if (type instanceof ClassOrInterfaceType) {
-                    this.visit((ClassOrInterfaceType) type, source);
-                }
-            });
+        node.getTypeArguments().forEach(type -> {
+            if (type instanceof ClassOrInterfaceType) {
+                this.visit((ClassOrInterfaceType) type, source);
+            }
         });
 
         super.visit(node, source);
@@ -513,7 +511,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final NameExpr methodNameExpr = node.getNameExpr();
         final String methodName = methodNameExpr.getName();
         final NodeList<Expression> args = node.getArgs();
-        Optional<Expression> scopeExpression = node.getScope();
+        Optional<Expression> scopeExpression = Optional.ofNullable(node.getScope());
 
         final EntryMessage entryMessage = log.traceEntry("className={} range={}", node.getName(), node.getRange());
 
@@ -815,7 +813,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         source.getCurrentBlock().ifPresent(blockScope -> {
             if (blockScope.isLambdaBlock) {
                 // lambda return
-                final Optional<Expression> expression = node.getExpr();
+                final Optional<Expression> expression = Optional.ofNullable(node.getExpr());
                 expression.ifPresent(expr -> {
                     getExprFQCN(expr, blockScope, source).ifPresent(fqcn -> {
                         final String s = ClassNameUtils.boxing(fqcn);
@@ -1214,8 +1212,8 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         } else if (clazz.equals(FieldAccessExpr.class)) {
 
             FieldAccessExpr x = (FieldAccessExpr) expr;
-            if (CachedASMReflector.getInstance().containsFQCN(x.toStringWithoutComments())) {
-                return Optional.of(x.toStringWithoutComments());
+            if (CachedASMReflector.getInstance().containsFQCN(x.toString())) {
+                return Optional.of(x.toString());
             }
             return this.fieldAccess(x, source, bs).map(AccessSymbol::getReturnType);
 
@@ -1269,8 +1267,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         } else if (clazz.equals(EnclosedExpr.class)) {
 
             final EnclosedExpr x = (EnclosedExpr) expr;
-            solved = x.getInner().flatMap(eExpr -> this.getExprFQCN(eExpr, bs, source));
-
+            solved = this.getExprFQCN(x.getInner(), bs, source);
         } else if (clazz.equals(CastExpr.class)) {
 
             final CastExpr x = (CastExpr) expr;

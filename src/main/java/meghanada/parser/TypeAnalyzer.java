@@ -191,8 +191,8 @@ class TypeAnalyzer {
                 })
                 .when(eq(FieldAccessExpr.class)).get(() -> {
                     FieldAccessExpr x = (FieldAccessExpr) expression;
-                    if (CachedASMReflector.getInstance().containsFQCN(x.toStringWithoutComments())) {
-                        return Optional.of(x.toStringWithoutComments());
+                    if (CachedASMReflector.getInstance().containsFQCN(x.toString())) {
+                        return Optional.of(x.toString());
                     }
                     return this.visitor.fieldAccess(x, source, bs).map(AccessSymbol::getReturnType);
                 })
@@ -228,7 +228,7 @@ class TypeAnalyzer {
                 .when(eq(StringLiteralExpr.class)).get(() -> Optional.of("java.lang.String"))
                 .when(eq(EnclosedExpr.class)).get(() -> {
                     final EnclosedExpr x = (EnclosedExpr) expression;
-                    return x.getInner().flatMap(expr -> this.analyzeExprClass(expr, bs, source));
+                    return this.analyzeExprClass(x.getInner(), bs, source);
                 })
                 .when(eq(CastExpr.class)).get(() -> {
                     final CastExpr x = (CastExpr) expression;
