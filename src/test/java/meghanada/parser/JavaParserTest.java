@@ -1071,7 +1071,7 @@ public class JavaParserTest extends GradleTestBase {
 
     @Test
     public void testParseGenMethodCall1() throws Exception {
-        JavaSource source = timeIt(() -> {
+        JavaSource source = traceIt(() -> {
             JavaParser parser = new JavaParser();
             return parser.parse(new File("src/test/java/meghanada/GenericMethodCall1.java"));
         });

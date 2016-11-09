@@ -348,6 +348,7 @@ public class CachedASMReflector {
         final String classWithoutTP = cn.getName();
         List<MemberDescriptor> members;
         try {
+            log.trace("@className={} classWithoutTP={}", className, classWithoutTP);
             members = this.memberCache.get(classWithoutTP);
         } catch (ExecutionException e) {
             throw new UncheckedExecutionException(e);

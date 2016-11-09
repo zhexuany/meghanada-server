@@ -17,13 +17,9 @@ public final class ClassName {
     private final int[] arrayIndex;
     private String[] classes;
 
-    public ClassName(String name) {
+    public ClassName(final String name) {
         this.rawName = ClassNameUtils.vaArgsToArray(name);
-        if (this.rawName.contains(ClassNameUtils.INNER_MARK)) {
-            this.classes = StringUtils.split(this.rawName, ClassNameUtils.INNER_MARK);
-        } else {
-            this.classes = StringUtils.split(this.rawName, ".");
-        }
+        this.classes = StringUtils.split(this.rawName, ClassNameUtils.INNER_MARK);
 
         final int length = classes.length;
         this.typeIndex = new int[length];
@@ -79,6 +75,7 @@ public final class ClassName {
     }
 
     public String getName() {
+        // TODO broken
         final int length = this.classes.length;
         final StringBuilder sb = new StringBuilder();
         for (int i = 0; i < length; i++) {

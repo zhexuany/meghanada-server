@@ -180,12 +180,14 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         final String name = node.getName();
         final EntryMessage entryMessage = log.traceEntry("ClassOrInterfaceType className={}", name);
 
-        node.getTypeArguments().forEach(type -> {
-            if (type instanceof ClassOrInterfaceType) {
-                this.visit((ClassOrInterfaceType) type, source);
-            }
-        });
-
+        final NodeList<Type<?>> typeArguments = node.getTypeArguments();
+        if (typeArguments != null) {
+            typeArguments.forEach(type -> {
+                if (type instanceof ClassOrInterfaceType) {
+                    this.visit((ClassOrInterfaceType) type, source);
+                }
+            });
+        }
         super.visit(node, source);
         if (source.resolveHints.containsKey(name)) {
             final String fqcn = source.resolveHints.get(name);
@@ -326,10 +328,13 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             final String fqcn = cot.toString();
             for (final VariableDeclarator v : node.getVariables()) {
                 final VariableDeclaratorId declaratorId = v.getId();
-                String fqcnAndArray = fqcn + node.getArrayBracketPairsAfterElementType().toString();
-                log.trace("field fqcn={}", fqcnAndArray);
+
+                // String fqcnAndArray = fqcn + node.getArrayBracketPairsAfterElementType().toString();
+                final String fqcnAndArray = fqcn;
                 final String name = declaratorId.getName();
                 final String declaringClass = ts.getFQCN();
+
+                log.trace("field fqcn={} name={}", fqcnAndArray, name);
                 final Variable ns = new Variable(
                         declaringClass,
                         name,
@@ -541,6 +546,9 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
 
             return this.getExprFQCN(scopeExpr, bs, src)
                     .flatMap(declaringClass -> {
+
+                        log.trace("@declaringClass={}", declaringClass);
+
                         final String maybeReturn = this.getReturnType(src, bs, declaringClass, methodName, args).
                                 orElse(null);
 
@@ -962,13 +970,13 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
         return Optional.of(methodSignature);
     }
 
-    private Optional<MemberDescriptor> getMethodWithTypeCheck(final String className,
+    private Optional<MemberDescriptor> getMethodWithTypeCheck(final String declaringClass,
                                                               final String name,
                                                               final int argLen,
                                                               final MethodSignature sig) {
 
         final CachedASMReflector reflector = CachedASMReflector.getInstance();
-        final List<MemberDescriptor> methods = reflector.reflectMethodStream(className, name, argLen)
+        final List<MemberDescriptor> methods = reflector.reflectMethodStream(declaringClass, name, argLen)
                 .collect(Collectors.toList());
 
         // shortcut
@@ -980,7 +988,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
             // no type check !
             return Optional.of(methods.get(0).clone());
         }
-
+        log.trace("@methods={}", methods);
         return methods.stream()
                 .filter(m -> {
                     final List<String> parameters = m.getParameters();
@@ -1035,7 +1043,7 @@ class JavaSymbolAnalyzeVisitor extends VoidVisitorAdapter<JavaSource> {
                                                         final int size,
                                                         final MethodSignature methodSignature) {
 
-        final EntryMessage entryMessage = log.traceEntry("getCallingMethod class={} className={} signature={}",
+        final EntryMessage entryMessage = log.traceEntry("getCallingMethod declaringClass={} methodName={} signature={}",
                 declaringClass, name, methodSignature);
         final Optional<MemberDescriptor> result = source.getCurrentType().map(ts -> {
             return this.getMethodWithTypeCheck(declaringClass, name, size, methodSignature)
