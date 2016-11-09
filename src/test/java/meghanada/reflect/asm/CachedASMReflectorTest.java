@@ -37,15 +37,17 @@ public class CachedASMReflectorTest extends GradleTestBase {
         GradleTestBase.setupReflector();
     }
 
-    @Ignore
     @Test
     public void testCreateClassIndexes() throws Exception {
         CachedASMReflector cachedASMReflector = CachedASMReflector.getInstance();
-        Stopwatch stopwatch = Stopwatch.createStarted();
-        cachedASMReflector.createClassIndexes();
-        System.out.println(stopwatch.stop());
-        // System.out.println(cachedASMReflector.getGlobalClassIndex().size());
-        assertTrue(9055 <= cachedASMReflector.getGlobalClassIndex().size());
+        final boolean b = timeIt(() -> {
+            cachedASMReflector.createClassIndexes();
+            return true;
+        });
+        assertTrue(7800 <= cachedASMReflector.getGlobalClassIndex().size());
+//        cachedASMReflector.getInnerClassIndex().forEach((k, v) -> {
+//            log.info("k={} v={}", k, v);
+//        });
     }
 
     @Test

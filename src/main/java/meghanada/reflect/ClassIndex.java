@@ -6,9 +6,7 @@ import meghanada.reflect.asm.CachedASMReflector;
 import meghanada.utils.ClassNameUtils;
 
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class ClassIndex implements CandidateUnit, Serializable, Cloneable {
 
@@ -18,6 +16,7 @@ public class ClassIndex implements CandidateUnit, Serializable, Cloneable {
     public String declaration;
     public List<String> typeParameters;
     public List<String> supers;
+    public Set<String> inner;
     public boolean isInterface;
     public boolean isAnnotation;
     public boolean functional;
@@ -31,6 +30,7 @@ public class ClassIndex implements CandidateUnit, Serializable, Cloneable {
         this.typeParameters = typeParameters;
         this.supers = supers;
         this.name = ClassNameUtils.getSimpleName(this.declaration);
+        this.inner = new HashSet<>(1);
     }
 
     public static ClassIndex createPackage(String pkg) {

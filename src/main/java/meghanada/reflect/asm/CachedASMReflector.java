@@ -40,7 +40,7 @@ import static meghanada.utils.FunctionUtils.wrapIOConsumer;
 
 public class CachedASMReflector {
 
-    public static final int CACHE_SIZE = 1024 * 4;
+    public static final int CACHE_SIZE = 1024;
     private static final Logger log = LogManager.getLogger(CachedASMReflector.class);
 
     private static final Pattern PACKAGE_RE = Pattern.compile("\\.\\*");
@@ -52,6 +52,7 @@ public class CachedASMReflector {
     private final Map<String, File> classFileMap = new ConcurrentHashMap<>(CACHE_SIZE * 8);
 
     private final Map<ClassIndex, File> reflectIndex = new ConcurrentHashMap<>(CACHE_SIZE * 8);
+    private final Map<String, Set<String>> innerClassIndex = new ConcurrentHashMap<>(CACHE_SIZE);
 
     private final List<File> jars = new ArrayList<>(32);
     private final List<File> directories = new ArrayList<>(4);
@@ -63,7 +64,7 @@ public class CachedASMReflector {
     private CachedASMReflector() {
         this.memberCache = CacheBuilder.newBuilder()
                 .initialCapacity(64)
-                .maximumSize(256)
+                .maximumSize(512)
                 .expireAfterAccess(30, TimeUnit.MINUTES)
                 .build(new MemberCacheLoader(this.classFileMap, reflectIndex));
 
@@ -106,6 +107,8 @@ public class CachedASMReflector {
     public void createClassIndexes() {
         log.debug("start createClassIndexes");
 
+        final Map<String, String> temp = new ConcurrentHashMap<>();
+
         this.jars.stream().parallel().forEach(wrapIOConsumer(file -> {
             if (file.getName().endsWith(".jar") && this.classFileMap.containsValue(file)) {
                 //skip cached jar
@@ -120,6 +123,31 @@ public class CachedASMReflector {
                         final ClassIndex classIndex1 = classIndexFileEntry.getKey();
                         final File file1 = classIndexFileEntry.getValue();
                         final String fqcn = classIndex1.getRawDeclaration();
+                        if (fqcn.contains(ClassNameUtils.INNER_MARK)) {
+
+                            final int i = fqcn.lastIndexOf(ClassNameUtils.INNER_MARK);
+                            final String parent = fqcn.substring(0, i);
+                            final String className = fqcn.substring(i + 1);
+
+                            if (this.globalClassIndex.containsKey(parent)) {
+                                final ClassIndex classIndex = this.globalClassIndex.get(parent);
+                                classIndex.inner.add(fqcn);
+                            } else {
+                                temp.put(fqcn, parent);
+                            }
+
+                            final String fqcn2 = ClassNameUtils.replaceInnerMark(fqcn);
+                            if (innerClassIndex.containsKey(className)) {
+                                final Set<String> strings = innerClassIndex.get(className);
+                                strings.add(fqcn);
+                                strings.add(fqcn2);
+                            } else {
+                                Set<String> set = new HashSet<>(2);
+                                set.add(fqcn);
+                                set.add(fqcn2);
+                                innerClassIndex.put(className, set);
+                            }
+                        }
                         this.globalClassIndex.put(fqcn, classIndex1);
                         this.classFileMap.put(fqcn, file1);
                         this.reflectIndex.put(classIndex1, file1);
@@ -140,13 +168,42 @@ public class CachedASMReflector {
                         final ClassIndex classIndex1 = classIndexFileEntry.getKey();
                         final File file1 = classIndexFileEntry.getValue();
                         final String fqcn = classIndex1.getRawDeclaration();
+                        final String fqcn2 = ClassNameUtils.replaceInnerMark(fqcn);
+                        if (fqcn.contains(ClassNameUtils.INNER_MARK)) {
+                            final int i = fqcn.lastIndexOf(ClassNameUtils.INNER_MARK);
+                            final String parent = fqcn.substring(0, i);
+                            final String className = fqcn.substring(i + 1);
+
+                            if (this.globalClassIndex.containsKey(parent)) {
+                                final ClassIndex classIndex = this.globalClassIndex.get(parent);
+                                classIndex.inner.add(fqcn);
+                            } else {
+                                temp.put(fqcn, parent);
+                            }
+
+                            if (innerClassIndex.containsKey(className)) {
+                                final Set<String> strings = innerClassIndex.get(className);
+                                strings.add(fqcn);
+                                strings.add(fqcn2);
+                            } else {
+                                Set<String> set = new HashSet<>(2);
+                                set.add(fqcn);
+                                set.add(fqcn2);
+                                innerClassIndex.put(className, set);
+                            }
+                        }
                         this.globalClassIndex.put(fqcn, classIndex1);
                         this.classFileMap.put(fqcn, file1);
                         this.reflectIndex.put(classIndex1, file1);
                     });
-
         }));
 
+        temp.forEach((fqcn, parent) -> {
+            if (this.globalClassIndex.containsKey(parent)) {
+                final ClassIndex classIndex = this.globalClassIndex.get(parent);
+                classIndex.inner.add(fqcn);
+            }
+        });
     }
 
     public boolean containsFQCN(String fqcn) {
@@ -636,6 +693,10 @@ public class CachedASMReflector {
             return this.toExistInnerClassName(next);
         }
         return Optional.of(new ProjectClassInfo(className, classFile));
+    }
+
+    public Map<String, Set<String>> getInnerClassIndex() {
+        return innerClassIndex;
     }
 
     public static class ProjectClassInfo {
